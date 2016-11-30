@@ -23,7 +23,7 @@ function Player(x,y) {
   this.state = "idle";
   this.position = {x: x, y: y};
   this.velocity = {x: 0, y: 0};
-  this.gravity = {x: 0, y: 2};
+  this.gravity = {x: 0, y: 1};
   this.floor = 16*35;
   // TODO
   this.img = new Image()
@@ -233,6 +233,6 @@ Player.prototype.jump = function() {
   if (this.position.y == this.floor) {
     this.time = 0;
     this.state = "jump";
-    this.velocity.y = -20;
+    this.velocity.y = -13;
   }
 }
