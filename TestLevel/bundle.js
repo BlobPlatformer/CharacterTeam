@@ -89,7 +89,7 @@ window.onkeyup = function(event) {
 
 window.onkeypress = function(event) {
   event.preventDefault();
-  if(event.keyCode == 32 || event.keyCode == 31) {
+  if(event.keyCode == 32 || event.keyCode == 31 || event.key == " ") {
     player.jump();
   }
 }
@@ -152,7 +152,6 @@ function render(elapsedTime, ctx) {
   //player
   player.render(elapsedTime, ctx);
 }
-
 
 },{"./game":2,"./player":3,"./tiles":4}],2:[function(require,module,exports){
 "use strict";
