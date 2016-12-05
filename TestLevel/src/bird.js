@@ -12,21 +12,21 @@ const IMAGE_HEIGHT = 576;
  * @module Enemy
  * A class representing an enemy
  */
-module.exports = exports = Enemy;
+module.exports = exports = Bird;
 
 /**
  * @constructor Enemy
  * Base class for an enemy
  * @param {object} startingPosition, object containing x and y coords
  */
-function Enemy(startingPosition,startendposition) {
+function Bird(startingPosition,startendposition) {
   this.state = "idle";
   this.position = startingPosition;
   this.start = startendposition.start;
-  this.end = startendposition.end;
+  this.end = startendposition.end - 40;
   this.gravity = {x: 0, y: 1};
   this.bulletpool = new Bullets(10);
-  this.floor = 16*35;
+  this.floor = 17*35;
   this.velocity = 4;
   this.img = new Image();
   this.img.src = 'assets/img/Sprite_Sheets/greenbird.png';
@@ -43,7 +43,7 @@ function Enemy(startingPosition,startendposition) {
  * @param {DOMHighResTimeStamp} elapedTime
  * @param {object} playerPosition, object containing x and y coords
  */
-Enemy.prototype.update = function(elapsedTime) {
+Bird.prototype.update = function(elapsedTime) {
   this.bullet_time += elapsedTime;
   var self = this;
   if(this.bullet_time >= 2000){
@@ -98,7 +98,7 @@ Enemy.prototype.update = function(elapsedTime) {
  * @param {DOMHighResTimeStamp} elapsedTime
  * @param {CanvasRenderingContext2D} ctx
  */
-Enemy.prototype.render = function(elapasedTime, ctx) {
+Bird.prototype.render = function(elapasedTime, ctx) {
   this.bulletpool.render(elapasedTime, ctx);
   ctx.drawImage(this.img, IMAGE_WIDTH*this.frame, IMAGE_HEIGHT*this.frameHeight, IMAGE_WIDTH, IMAGE_HEIGHT, this.position.x, this.position.y, 40, 32);
 }

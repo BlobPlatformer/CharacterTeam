@@ -5,14 +5,14 @@
 const Game = require('./game');
 const Player = require('./player');
 const Tiles = require('./tiles');
-const EnemyBird = require('./enemy');
+const EnemyBird = require('./bird');
 
 
 /* Global variables */
 var canvas = document.getElementById('screen');
 var game = new Game(canvas, update, render);
 var player = new Player(0,16*35) ;
-var enemy = new EnemyBird({x:1, y: 100}, {start:0 , end:canvas.width });
+var bird = new EnemyBird({x:1, y: 100}, {start:0 , end:canvas.width });
 var input = {
   up: false,
   down: false,
@@ -117,7 +117,7 @@ masterLoop(performance.now());
  */
 function update(elapsedTime) {
 	player.update(elapsedTime, input);
-  enemy.update(elapsedTime);
+  bird.update(elapsedTime);
   if(player.velocity.y >= 0) {
     if(tiles.isFloor(player.position)) {
       //player.velocity = {x:0,y:0};
@@ -154,10 +154,116 @@ function render(elapsedTime, ctx) {
 
   //player
   player.render(elapsedTime, ctx);
-  enemy.render(elapsedTime, ctx);
+  bird.render(elapsedTime, ctx);
 }
 
-},{"./enemy":3,"./game":4,"./player":5,"./tiles":6}],2:[function(require,module,exports){
+},{"./bird":2,"./game":4,"./player":5,"./tiles":6}],2:[function(require,module,exports){
+"use strict";
+
+/* Classes and Libraries */
+const Bullets = require('./bullet_pool');
+
+/* Constants */
+const MS_PER_FRAME = 1000/8;
+const IMAGE_WIDTH = 706;
+const IMAGE_HEIGHT = 576;
+
+/**
+ * @module Enemy
+ * A class representing an enemy
+ */
+module.exports = exports = Bird;
+
+/**
+ * @constructor Enemy
+ * Base class for an enemy
+ * @param {object} startingPosition, object containing x and y coords
+ */
+function Bird(startingPosition,startendposition) {
+  this.state = "idle";
+  this.position = startingPosition;
+  this.start = startendposition.start;
+  this.end = startendposition.end - 40;
+  this.gravity = {x: 0, y: 1};
+  this.bulletpool = new Bullets(10);
+  this.floor = 17*35;
+  this.velocity = 4;
+  this.img = new Image();
+  this.img.src = 'assets/img/Sprite_Sheets/greenbird.png';
+  this.frame = 0; //Frame on X-axis
+  this.frameHeight = 0; //Frame on Y-axis
+  this.direction = "right";
+  this.time = 0;
+  this.bullet_time = 0;
+}
+
+/**
+ * @function update
+ * Updates the enemy based on the supplied input
+ * @param {DOMHighResTimeStamp} elapedTime
+ * @param {object} playerPosition, object containing x and y coords
+ */
+Bird.prototype.update = function(elapsedTime) {
+  this.bullet_time += elapsedTime;
+  var self = this;
+  if(this.bullet_time >= 2000){
+    this.bulletpool.add(this.position, {x: 0, y:6});
+    this.bullet_time = 0;
+  }
+  this.bulletpool.update(elapsedTime, function(bullet){
+    if(bullet.y >= self.floor) return true;
+    return false;
+  });
+  switch(this.direction){
+    case "right":
+      this.frameHeight = 0;
+      this.time += elapsedTime;
+      if(this.time >= MS_PER_FRAME){
+        this.frame ++;
+        this.time = 0;
+      }
+      if(this.position.x >= this.end){
+        this.direction = "left";
+        this.frame = 0;
+        console.log("goes left", this.position);
+      }
+      else{
+        this.position.x += this.velocity;
+        if(this.frame >= 8) this.frame = 0;
+      }
+      break;
+    case "left":
+      this.frameHeight = 1;
+      this.time += elapsedTime;
+      if(this.time >= MS_PER_FRAME){
+        this.frame ++;
+        this.time = 0;
+      }
+      if(this.position.x <= this.start){
+        this.direction = "right";
+        this.frame = 0;
+        console.log("goes right", this.position);
+      }
+      else{
+        this.position.x -= this.velocity;
+        if(this.frame >= 8) this.frame = 0;
+      }
+      break;
+  }
+}
+
+/**
+ * @function render
+ * Renders the enemy in world coordinates
+ * @param {DOMHighResTimeStamp} elapsedTime
+ * @param {CanvasRenderingContext2D} ctx
+ */
+Bird.prototype.render = function(elapasedTime, ctx) {
+  this.bulletpool.render(elapasedTime, ctx);
+  ctx.drawImage(this.img, IMAGE_WIDTH*this.frame, IMAGE_HEIGHT*this.frameHeight, IMAGE_WIDTH, IMAGE_HEIGHT, this.position.x, this.position.y, 40, 32);
+}
+
+},{"./bullet_pool":3}],3:[function(require,module,exports){
 "use strict";
 
 /**
@@ -257,113 +363,7 @@ BulletPool.prototype.render = function(elapsedTime, ctx) {
   ctx.restore();
 }
 
-},{}],3:[function(require,module,exports){
-"use strict";
-
-/* Classes and Libraries */
-const Bullets = require('./bullet_pool');
-
-/* Constants */
-const MS_PER_FRAME = 1000/8;
-const IMAGE_WIDTH = 706;
-const IMAGE_HEIGHT = 576;
-
-/**
- * @module Enemy
- * A class representing an enemy
- */
-module.exports = exports = Enemy;
-
-/**
- * @constructor Enemy
- * Base class for an enemy
- * @param {object} startingPosition, object containing x and y coords
- */
-function Enemy(startingPosition,startendposition) {
-  this.state = "idle";
-  this.position = startingPosition;
-  this.start = startendposition.start;
-  this.end = startendposition.end;
-  this.gravity = {x: 0, y: 1};
-  this.bulletpool = new Bullets(10);
-  this.floor = 16*35;
-  this.velocity = 4;
-  this.img = new Image();
-  this.img.src = 'assets/img/Sprite_Sheets/greenbird.png';
-  this.frame = 0; //Frame on X-axis
-  this.frameHeight = 0; //Frame on Y-axis
-  this.direction = "right";
-  this.time = 0;
-  this.bullet_time = 0;
-}
-
-/**
- * @function update
- * Updates the enemy based on the supplied input
- * @param {DOMHighResTimeStamp} elapedTime
- * @param {object} playerPosition, object containing x and y coords
- */
-Enemy.prototype.update = function(elapsedTime) {
-  this.bullet_time += elapsedTime;
-  var self = this;
-  if(this.bullet_time >= 2000){
-    this.bulletpool.add(this.position, {x: 0, y:6});
-    this.bullet_time = 0;
-  }
-  this.bulletpool.update(elapsedTime, function(bullet){
-    if(bullet.y >= self.floor) return true;
-    return false;
-  });
-  switch(this.direction){
-    case "right":
-      this.frameHeight = 0;
-      this.time += elapsedTime;
-      if(this.time >= MS_PER_FRAME){
-        this.frame ++;
-        this.time = 0;
-      }
-      if(this.position.x >= this.end){
-        this.direction = "left";
-        this.frame = 0;
-        console.log("goes left", this.position);
-      }
-      else{
-        this.position.x += this.velocity;
-        if(this.frame >= 8) this.frame = 0;
-      }
-      break;
-    case "left":
-      this.frameHeight = 1;
-      this.time += elapsedTime;
-      if(this.time >= MS_PER_FRAME){
-        this.frame ++;
-        this.time = 0;
-      }
-      if(this.position.x <= this.start){
-        this.direction = "right";
-        this.frame = 0;
-        console.log("goes right", this.position);
-      }
-      else{
-        this.position.x -= this.velocity;
-        if(this.frame >= 8) this.frame = 0;
-      }
-      break;
-  }
-}
-
-/**
- * @function render
- * Renders the enemy in world coordinates
- * @param {DOMHighResTimeStamp} elapsedTime
- * @param {CanvasRenderingContext2D} ctx
- */
-Enemy.prototype.render = function(elapasedTime, ctx) {
-  this.bulletpool.render(elapasedTime, ctx);
-  ctx.drawImage(this.img, IMAGE_WIDTH*this.frame, IMAGE_HEIGHT*this.frameHeight, IMAGE_WIDTH, IMAGE_HEIGHT, this.position.x, this.position.y, 40, 32);
-}
-
-},{"./bullet_pool":2}],4:[function(require,module,exports){
+},{}],4:[function(require,module,exports){
 "use strict";
 
 /**
