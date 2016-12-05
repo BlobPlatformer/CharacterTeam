@@ -4,12 +4,14 @@
 const Game = require('./game');
 const Player = require('./player');
 const Tiles = require('./tiles');
+const EnemyBird = require('./enemy');
 
 
 /* Global variables */
 var canvas = document.getElementById('screen');
 var game = new Game(canvas, update, render);
 var player = new Player(0,16*35) ;
+var enemy = new EnemyBird({x:1, y: 100}, {start:0 , end:canvas.width });
 var input = {
   up: false,
   down: false,
@@ -114,6 +116,7 @@ masterLoop(performance.now());
  */
 function update(elapsedTime) {
 	player.update(elapsedTime, input);
+  enemy.update(elapsedTime);
   if(player.velocity.y >= 0) {
     if(tiles.isFloor(player.position)) {
       //player.velocity = {x:0,y:0};
@@ -150,4 +153,5 @@ function render(elapsedTime, ctx) {
 
   //player
   player.render(elapsedTime, ctx);
+  enemy.render(elapsedTime, ctx);
 }

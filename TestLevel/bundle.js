@@ -5,12 +5,14 @@
 const Game = require('./game');
 const Player = require('./player');
 const Tiles = require('./tiles');
+const EnemyBird = require('./enemy');
 
 
 /* Global variables */
 var canvas = document.getElementById('screen');
 var game = new Game(canvas, update, render);
 var player = new Player(0,16*35) ;
+var enemy = new EnemyBird({x:1, y: 100}, {start:0 , end:canvas.width });
 var input = {
   up: false,
   down: false,
@@ -115,6 +117,7 @@ masterLoop(performance.now());
  */
 function update(elapsedTime) {
 	player.update(elapsedTime, input);
+  enemy.update(elapsedTime);
   if(player.velocity.y >= 0) {
     if(tiles.isFloor(player.position)) {
       //player.velocity = {x:0,y:0};
@@ -151,9 +154,216 @@ function render(elapsedTime, ctx) {
 
   //player
   player.render(elapsedTime, ctx);
+  enemy.render(elapsedTime, ctx);
 }
 
-},{"./game":2,"./player":3,"./tiles":4}],2:[function(require,module,exports){
+},{"./enemy":3,"./game":4,"./player":5,"./tiles":6}],2:[function(require,module,exports){
+"use strict";
+
+/**
+ * @module BulletPool
+ * A class for managing bullets in-game
+ * We use a Float32Array to hold our bullet info,
+ * as this creates a single memory buffer we can
+ * iterate over, minimizing cache misses.
+ * Values stored are: positionX, positionY, velocityX,
+ * velocityY in that order.
+ */
+module.exports = exports = BulletPool;
+
+/**
+ * @constructor BulletPool
+ * Creates a BulletPool of the specified size
+ * @param {uint} size the maximum number of bullets to exits concurrently
+ */
+function BulletPool(maxSize) {
+  this.pool = new Float32Array(4 * maxSize);
+  this.end = 0;
+  this.max = maxSize;
+  this.bulletRadius = 4;
+}
+
+/**
+ * @function add
+ * Adds a new bullet to the end of the BulletPool.
+ * If there is no room left, no bullet is created.
+ * @param {Vector} position where the bullet begins
+ * @param {Vector} velocity the bullet's velocity
+*/
+BulletPool.prototype.add = function(position, velocity) {
+  if(this.end < this.max) {
+    this.pool[4*this.end] = position.x + 27;
+    this.pool[4*this.end+1] = position.y + 10.5;
+    this.pool[4*this.end+2] = velocity.x;
+    this.pool[4*this.end+3] = velocity.y;
+    this.end++;
+  }
+}
+
+/**
+ * @function update
+ * Updates the bullet using its stored velocity, and
+ * calls the callback function passing the transformed
+ * bullet.  If the callback returns true, the bullet is
+ * removed from the pool.
+ * Removed bullets are replaced with the last bullet's values
+ * and the size of the bullet array is reduced, keeping
+ * all live bullets at the front of the array.
+ * @param {DOMHighResTimeStamp} elapsedTime
+ * @param {function} callback called with the bullet's position,
+ * if the return value is true, the bullet is removed from the pool
+ */
+BulletPool.prototype.update = function(elapsedTime, callback) {
+  for(var i = 0; i < this.end; i++){
+    // Move the bullet
+    this.pool[4*i] += this.pool[4*i+2];
+    this.pool[4*i+1] += this.pool[4*i+3];
+    // If a callback was supplied, call it
+    if(callback && callback({
+      x: this.pool[4*i],
+      y: this.pool[4*i+1]
+    })) {
+      // Swap the current and last bullet if we
+      // need to remove the current bullet
+      this.pool[4*i] = this.pool[4*(this.end-1)];
+      this.pool[4*i+1] = this.pool[4*(this.end-1)+1];
+      this.pool[4*i+2] = this.pool[4*(this.end-1)+2];
+      this.pool[4*i+3] = this.pool[4*(this.end-1)+3];
+      // Reduce the total number of bullets by 1
+      this.end--;
+      // Reduce our iterator by 1 so that we update the
+      // freshly swapped bullet.
+      i--;
+    }
+  }
+}
+
+/**
+ * @function render
+ * Renders all bullets in our array.
+ * @param {DOMHighResTimeStamp} elapsedTime
+ * @param {CanvasRenderingContext2D} ctx
+ */
+BulletPool.prototype.render = function(elapsedTime, ctx) {
+  // Render the bullets as a single path
+  ctx.save();
+  ctx.beginPath();
+  ctx.fillStyle = "black";
+  for(var i = 0; i < this.end; i++) {
+    ctx.moveTo(this.pool[4*i], this.pool[4*i+1]);
+    ctx.arc(this.pool[4*i], this.pool[4*i+1], this.bulletRadius, 0, 2*Math.PI);
+  }
+  ctx.fill();
+  ctx.restore();
+}
+
+},{}],3:[function(require,module,exports){
+"use strict";
+
+/* Classes and Libraries */
+const Bullets = require('./bullet_pool');
+
+/* Constants */
+const MS_PER_FRAME = 1000/8;
+const IMAGE_WIDTH = 706;
+const IMAGE_HEIGHT = 576;
+
+/**
+ * @module Enemy
+ * A class representing an enemy
+ */
+module.exports = exports = Enemy;
+
+/**
+ * @constructor Enemy
+ * Base class for an enemy
+ * @param {object} startingPosition, object containing x and y coords
+ */
+function Enemy(startingPosition,startendposition) {
+  this.state = "idle";
+  this.position = startingPosition;
+  this.start = startendposition.start;
+  this.end = startendposition.end;
+  this.gravity = {x: 0, y: 1};
+  this.bulletpool = new Bullets(10);
+  this.floor = 16*35;
+  this.velocity = 4;
+  this.img = new Image();
+  this.img.src = 'assets/img/Sprite_Sheets/greenbird.png';
+  this.frame = 0; //Frame on X-axis
+  this.frameHeight = 0; //Frame on Y-axis
+  this.direction = "right";
+  this.time = 0;
+  this.bullet_time = 0;
+}
+
+/**
+ * @function update
+ * Updates the enemy based on the supplied input
+ * @param {DOMHighResTimeStamp} elapedTime
+ * @param {object} playerPosition, object containing x and y coords
+ */
+Enemy.prototype.update = function(elapsedTime) {
+  this.bullet_time += elapsedTime;
+  var self = this;
+  if(this.bullet_time >= 2000){
+    this.bulletpool.add(this.position, {x: 0, y:6});
+    this.bullet_time = 0;
+  }
+  this.bulletpool.update(elapsedTime, function(bullet){
+    if(bullet.y >= self.floor) return true;
+    return false;
+  });
+  switch(this.direction){
+    case "right":
+      this.frameHeight = 0;
+      this.time += elapsedTime;
+      if(this.time >= MS_PER_FRAME){
+        this.frame ++;
+        this.time = 0;
+      }
+      if(this.position.x >= this.end){
+        this.direction = "left";
+        this.frame = 0;
+        console.log("goes left", this.position);
+      }
+      else{
+        this.position.x += this.velocity;
+        if(this.frame >= 8) this.frame = 0;
+      }
+      break;
+    case "left":
+      this.frameHeight = 1;
+      this.time += elapsedTime;
+      if(this.time >= MS_PER_FRAME){
+        this.frame ++;
+        this.time = 0;
+      }
+      if(this.position.x <= this.start){
+        this.direction = "right";
+        this.frame = 0;
+        console.log("goes right", this.position);
+      }
+      else{
+        this.position.x -= this.velocity;
+        if(this.frame >= 8) this.frame = 0;
+      }
+      break;
+  }
+}
+
+/**
+ * @function render
+ * Renders the enemy in world coordinates
+ * @param {DOMHighResTimeStamp} elapsedTime
+ * @param {CanvasRenderingContext2D} ctx
+ */
+Enemy.prototype.render = function(elapasedTime, ctx) {
+  this.bulletpool.render(elapasedTime, ctx);
+  ctx.drawImage(this.img, IMAGE_WIDTH*this.frame, IMAGE_HEIGHT*this.frameHeight, IMAGE_WIDTH, IMAGE_HEIGHT, this.position.x, this.position.y, 40, 32);
+}
+
+},{"./bullet_pool":2}],4:[function(require,module,exports){
 "use strict";
 
 /**
@@ -211,7 +421,7 @@ Game.prototype.loop = function(newTime) {
   this.frontCtx.drawImage(this.backBuffer, 0, 0);
 }
 
-},{}],3:[function(require,module,exports){
+},{}],5:[function(require,module,exports){
 "use strict";
 
 /* Classes and Libraries */
@@ -451,7 +661,7 @@ Player.prototype.jump = function() {
   }
 }
 
-},{}],4:[function(require,module,exports){
+},{}],6:[function(require,module,exports){
 
 
 
