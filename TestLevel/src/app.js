@@ -9,6 +9,7 @@ const EnemyBird = require('./bird');
 
 const EntityManager = require('./entity-manager');
 const ElfArcher = require('./enemies/archers/elf-archer');
+const Orc = require('./enemies/melee/orc_basic.js');
 
 
 
@@ -18,6 +19,7 @@ var game = new Game(canvas, update, render);
 var player = new Player(0,16*35) ;
 
 var bird = new EnemyBird({x:1, y: 100}, {start:0 , end:canvas.width });
+var orc = new Orc({x: 600, y: 200}, tiles);
 
 var entityManager = new EntityManager(player);
 
