@@ -10,6 +10,7 @@ const EnemyBird = require('./bird');
 
 const EntityManager = require('./entity-manager');
 const ElfArcher = require('./enemies/archers/elf-archer');
+const OrcArcher = require('./enemies/archers/orc-archer');
 const Orc = require('./enemies/melee/orc_basic.js');
 
 
@@ -29,6 +30,7 @@ var blocks = tiles.getBlocks();
 var bird = new EnemyBird({x:1, y: 100}, {start:0 , end:canvas.width });
 var orc = new Orc({x: 600, y: 200}, tiles);
 
+
 var entityManager = new EntityManager(player);
 
 var input = {
@@ -41,7 +43,9 @@ var groundHit = false;
 
 // Dummy enemy
 var elfarcher = new ElfArcher({x: 600, y: 543});
+var orcarcher = new OrcArcher({x: 1000, y: 533});
 entityManager.addEnemy(elfarcher);
+entityManager.addEnemy(orcarcher);
 entityManager.addEnemy(bird);
 entityManager.addEnemy(orc);
 
@@ -177,7 +181,7 @@ function render(elapsedTime, ctx) {
   player.render(elapsedTime, ctx);
 }
 
-},{"./bird":2,"./enemies/archers/elf-archer":6,"./enemies/melee/orc_basic.js":8,"./entity-manager":9,"./game":10,"./player":12,"./tiles":13}],2:[function(require,module,exports){
+},{"./bird":2,"./enemies/archers/elf-archer":6,"./enemies/archers/orc-archer":7,"./enemies/melee/orc_basic.js":9,"./entity-manager":10,"./game":11,"./player":13,"./tiles":14}],2:[function(require,module,exports){
 "use strict";
 
 /* Classes and Libraries */
@@ -391,8 +395,6 @@ const Vector = require('../../vector');
 const Arrow = require('./arrow');
 
 /* Constants */
-const FRAME_SIZE = 64;
-const DEST_FRAME_SIZE = 54;
 const MS_PER_FRAME = 1000/12;
 const LEFT = "l";
 const RIGHT = "r";
@@ -423,7 +425,7 @@ module.exports = exports = Archer;
  * @param {Int} walkingSpeed, speed of walking
  * @param {Int} shootingRange, distance from which can archer start shooting
  */
-function Archer(startingPosition, image, walkingRange, walkingSpeed, shootingRange, shootingSpeed) {
+function Archer(startingPosition, image, walkingRange, walkingSpeed, shootingRange, shootingSpeed, maximumArrows, arrowSpeed) {
   this.position = startingPosition;
   this.state = "idle";
   this.direction = LEFT;
@@ -437,13 +439,56 @@ function Archer(startingPosition, image, walkingRange, walkingSpeed, shootingRan
   this.walkingSpeed = walkingSpeed;
   this.shootingRange = shootingRange;
   this.shootingSpeed = shootingSpeed;
+  this.arrowsGenerated = 0;
+  this.maximumArrows = maximumArrows;
+  this.arrowSpeed = arrowSpeed;
   this.time = MS_PER_FRAME;
+}
+
+/**
+ * @function setFramesAccordingToState
+ * Updates the archer frames based on his state
+ */
+Archer.prototype.setFramesAccordingToState = function() {
+  switch (this.state) {
+    case "idle":
+      if(this.direction == LEFT) {
+        this.frame.y = WALK_LEFT_FRAME_Y;
+        this.frame.x = 0;
+        this.frame.maxX = IDLE_FRAME_MAX_X;
+      } else {
+        this.frame.y = WALK_RIGHT_FRAME_Y;
+        this.frame.x = 0;
+        this.frame.maxX = IDLE_FRAME_MAX_X;
+      }
+      break;
+    case "walking":
+      if(this.direction == LEFT) {
+        this.frame.y = WALK_LEFT_FRAME_Y;
+        this.frame.maxX = WALK_LEFT_FRAME_MAX_X;
+      } else {
+        this.frame.y = WALK_RIGHT_FRAME_Y;
+        this.frame.maxX = WALK_RIGHT_FRAME_MAX_X;
+      }
+      break;
+    case "shooting":
+      if(this.direction == LEFT) {
+        this.frame.y = SHOOT_LEFT_FRAME_Y;
+        this.frame.maxX = SHOOT_LEFT_FRAME_MAX_X;
+      } else {
+        this.frame.y = SHOOT_RIGHT_FRAME_Y;
+        this.frame.maxX = SHOOT_RIGHT_FRAME_MAX_X;
+      }
+      break;
+    default:
+      console.log(this.state);
+  }
 }
 
 /**
  * @function update
  * Updates the archer enemy based on the supplied input
- * @param {DOMHighResTimeStamp} elapedTime
+ * @param {DOMHighResTimeStamp} elapsedTime
  * @param {object} playerPosition, object containing x and y coords
  * @param {object} entityManager, object which maintains all particles
  */
@@ -466,38 +511,18 @@ Archer.prototype.update = function(elapsedTime, playerPosition, entityManager) {
   if(magnitude > this.walkingRange || Math.abs(vector.y) > 90) {
     // Player is far away/above/under the archer, stay idle, change frames only
     this.state = "idle";
-    if(this.direction == LEFT) {
-      this.frame.y = WALK_LEFT_FRAME_Y;
-      this.frame.x = 0;
-      this.frame.maxX = IDLE_FRAME_MAX_X;
-    } else {
-      this.frame.y = WALK_RIGHT_FRAME_Y;
-      this.frame.x = 0;
-      this.frame.maxX = IDLE_FRAME_MAX_X;
-    }
+    Archer.prototype.setFramesAccordingToState.call(this);
   }
   else if (magnitude > this.shootingRange) {
     // Player has reached the walking distance of the archer
     // Archer goes towards the player
     this.state = "walking";
-    if(this.direction == LEFT) {
-      this.frame.y = WALK_LEFT_FRAME_Y;
-      this.frame.maxX = WALK_LEFT_FRAME_MAX_X;
-    } else {
-      this.frame.y = WALK_RIGHT_FRAME_Y;
-      this.frame.maxX = WALK_RIGHT_FRAME_MAX_X;
-    }
+    Archer.prototype.setFramesAccordingToState.call(this);
   } else {
     // Player has reached the shooting distance of the archer
     // Archer starts shooting towards the player
     this.state = "shooting";
-    if(this.direction == LEFT) {
-      this.frame.y = SHOOT_LEFT_FRAME_Y;
-      this.frame.maxX = SHOOT_LEFT_FRAME_MAX_X;
-    } else {
-      this.frame.y = SHOOT_RIGHT_FRAME_Y;
-      this.frame.maxX = SHOOT_RIGHT_FRAME_MAX_X;
-    }
+    Archer.prototype.setFramesAccordingToState.call(this);
   }
 
   switch(this.state) {
@@ -505,9 +530,11 @@ Archer.prototype.update = function(elapsedTime, playerPosition, entityManager) {
       this.position.x += (this.direction == LEFT)? -this.walkingSpeed : this.walkingSpeed;
       break;
     case "shooting":
-      if(this.frame.x == SHOOTING_FRAME) entityManager.addParticle(new Arrow({x: this.position.x, y: this.position.y - 12}, this.direction));
-      break;
-    default:
+      var arrowVelocity = {x: (this.direction == LEFT)? -this.arrowSpeed : this.arrowSpeed, y: 0}
+      if(this.frame.x == SHOOTING_FRAME) {
+        entityManager.addParticle(new Arrow({x: this.position.x, y: this.position.y - 12}, arrowVelocity));
+        this.arrowsGenerated = this.arrowsGenerated + 1;
+      }
       break;
   }
 
@@ -517,21 +544,27 @@ Archer.prototype.update = function(elapsedTime, playerPosition, entityManager) {
  * @function render
  * Renders the archer enemy in world coordinates
  * @param {DOMHighResTimeStamp} elapsedTime
+ * @param {object} frame, sets the source and destionation frame properties
  * @param {CanvasRenderingContext2D} ctx
  */
-Archer.prototype.render = function(elapasedTime, ctx) {
-  ctx.drawImage(this.image, this.frame.x * FRAME_SIZE, this.frame.y * FRAME_SIZE, FRAME_SIZE, FRAME_SIZE, this.position.x, this.position.y, DEST_FRAME_SIZE, DEST_FRAME_SIZE);
+Archer.prototype.render = function(elapasedTime, frame ,ctx) {
+  ctx.drawImage(this.image,
+                this.frame.x * frame.source_frame_width,
+                this.frame.y * frame.source_frame_height,
+                frame.source_frame_width,
+                frame.source_frame_height,
+                this.position.x, this.position.y,
+                frame.dest_frame_width,
+                frame.dest_frame_height
+  );
 }
 
-},{"../../vector":14,"./arrow":5}],5:[function(require,module,exports){
+},{"../../vector":15,"./arrow":5}],5:[function(require,module,exports){
 "use strict";
 
 /* Constants */
-const LEFT = "l";
-const RIGHT = "r";
 const ORIG_FRAME_SIZE = 64;
 const DEST_FRAME_SIZE = 54;
-const ARROW_SPEED_IN_PX = 5;
 const ARROW_LEFT = 0; // Frame position
 const ARROW_RIGHT = 1; // Frame position
 
@@ -549,13 +582,11 @@ module.exports = exports = Arrow;
  * Class for an elf enemy which shoots arrows
  * @param {Object} startingPosition, object containing x and y coords
  */
-function Arrow(position, direction) {
+function Arrow(position, velocity) {
   var image =  new Image();
   image.src = 'assets/img/Sprite_Sheets/archers/arrow.png';
 
-  var velocity = {x: (direction == LEFT)? -ARROW_SPEED_IN_PX: ARROW_SPEED_IN_PX, y: 0}
-
-  var frame = (direction == LEFT)? ARROW_LEFT : ARROW_RIGHT;
+  var frame = (velocity.x < 0)? ARROW_LEFT : ARROW_RIGHT;
 
   Particle.call(this, position, velocity, image, ORIG_FRAME_SIZE, frame, 0, DEST_FRAME_SIZE);
 }
@@ -579,7 +610,7 @@ Arrow.prototype.render = function(elapsedTime, ctx) {
   Particle.prototype.render.call(this, elapsedTime, ctx);
 }
 
-},{"../../particle":11}],6:[function(require,module,exports){
+},{"../../particle":12}],6:[function(require,module,exports){
 "use strict";
 
 /* Classes and Libraries */
@@ -591,6 +622,13 @@ const WALKING_RANGE_IN_PX = 600;
 const WALKING_SPEED_IN_PX = 5;
 const SHOOTING_RANGE_IN_PX = 350;
 const SHOOTING_SPEED = 1000/13;
+const ARROW_SPEED_IN_PX = 5;
+const MAXIMUM_ARROWS_GENERATED = 1;
+const FRAME = {source_frame_width: 64,
+               source_frame_height: 64,
+               dest_frame_width: 54,
+               dest_frame_height: 54
+};
 
 /**
  * @module ElfArcher
@@ -607,7 +645,7 @@ module.exports = exports = ElfArcher;
 function ElfArcher(startingPosition) {
   var image = new Image();
   image.src = 'assets/img/Sprite_Sheets/archers/elfarcher.png';
-  Archer.call(this, startingPosition, image, WALKING_RANGE_IN_PX, WALKING_SPEED_IN_PX, SHOOTING_RANGE_IN_PX, SHOOTING_SPEED);
+  Archer.call(this, startingPosition, image, WALKING_RANGE_IN_PX, WALKING_SPEED_IN_PX, SHOOTING_RANGE_IN_PX, SHOOTING_SPEED, MAXIMUM_ARROWS_GENERATED, ARROW_SPEED_IN_PX);
 }
 
 
@@ -619,6 +657,7 @@ function ElfArcher(startingPosition) {
  */
 ElfArcher.prototype.update = function(elapsedTime, playerPosition, entityManager) {
   Archer.prototype.update.call(this, elapsedTime, playerPosition, entityManager);
+  this.arrowsGenerated = 0;
 }
 
 /**
@@ -628,10 +667,78 @@ ElfArcher.prototype.update = function(elapsedTime, playerPosition, entityManager
  * @param {CanvasRenderingContext2D} ctx
  */
 ElfArcher.prototype.render = function(elapsedTime, ctx) {
-  Archer.prototype.render.call(this, elapsedTime, ctx);
+  Archer.prototype.render.call(this, elapsedTime, FRAME, ctx);
 }
 
 },{"./archer":4}],7:[function(require,module,exports){
+"use strict";
+
+/* Classes and Libraries */
+const Archer = require('./archer');
+
+
+/* Constants */
+const WALKING_RANGE_IN_PX = 800;
+const WALKING_SPEED_IN_PX = 7;
+const SHOOTING_RANGE_IN_PX = 500;
+const SHOOTING_SPEED = 1000/20;
+const ARROW_SPEED_IN_PX = 6.5;
+const MAXIMUM_ARROWS_GENERATED = 3;
+const DEST_FRAME_SIZE = 64;
+const FRAME = {source_frame_width: 64,
+               source_frame_height: 64,
+               dest_frame_width: 64,
+               dest_frame_height: 64
+};
+const PAUSE = 1000;
+
+/**
+ * @module OrcArcher
+ * A class representing an archer enemy
+ */
+module.exports = exports = OrcArcher;
+
+
+/**
+ * @constructor OrcArcher
+ * Class for an orc enemy which shoots arrows
+ * @param {Object} startingPosition, object containing x and y coords
+ */
+function OrcArcher(startingPosition) {
+  var image = new Image();
+  image.src = 'assets/img/Sprite_Sheets/archers/orcarcher.png';
+  Archer.call(this, startingPosition, image, WALKING_RANGE_IN_PX, WALKING_SPEED_IN_PX, SHOOTING_RANGE_IN_PX, SHOOTING_SPEED, MAXIMUM_ARROWS_GENERATED, ARROW_SPEED_IN_PX);
+  this.pauseTime = 0;
+}
+
+
+/**
+ * @function update
+ * Updates the orc archer enemy based on the supplied input
+ * @param {DOMHighResTimeStamp} elapedTime
+ * @param {object} playerPosition, object containing x and y coords
+ */
+OrcArcher.prototype.update = function(elapsedTime, playerPosition, entityManager) {
+  Archer.prototype.update.call(this, elapsedTime, playerPosition, entityManager);
+
+  if(this.arrowsGenerated == MAXIMUM_ARROWS_GENERATED) {
+    this.frame.x = (this.frame.x + 1) % this.frame.maxX;
+    this.time = PAUSE;
+    this.arrowsGenerated = 0;
+  }
+}
+
+/**
+ * @function render
+ * Renders the orc archer enemy in world coordinates
+ * @param {DOMHighResTimeStamp} elapsedTime
+ * @param {CanvasRenderingContext2D} ctx
+ */
+OrcArcher.prototype.render = function(elapsedTime, ctx) {
+  Archer.prototype.render.call(this, elapsedTime, FRAME, ctx);
+}
+
+},{"./archer":4}],8:[function(require,module,exports){
 "use strict";
 
 /* Classes and Libraries */
@@ -783,7 +890,7 @@ function onFloor(melee) {
   }
 }
 
-},{}],8:[function(require,module,exports){
+},{}],9:[function(require,module,exports){
 "use strict";
 
 /* Libraries */
@@ -833,7 +940,7 @@ Orc.prototype.stab = function() {
   Melee.prototype.stab.call(this);
 }
 
-},{"./melee.js":7}],9:[function(require,module,exports){
+},{"./melee.js":8}],10:[function(require,module,exports){
 "use strict";
 
 const LEFT = "left";
@@ -960,7 +1067,7 @@ function collisions(me, player) {
   })
 }
 
-},{}],10:[function(require,module,exports){
+},{}],11:[function(require,module,exports){
 "use strict";
 
 /**
@@ -1018,7 +1125,7 @@ Game.prototype.loop = function(newTime) {
   this.frontCtx.drawImage(this.backBuffer, 0, 0);
 }
 
-},{}],11:[function(require,module,exports){
+},{}],12:[function(require,module,exports){
 "use strict";
 
 /* Classes and Libraries */
@@ -1083,7 +1190,7 @@ Particle.prototype.render = function(elapasedTime, ctx) {
     this.imageSize, this.imageSize, this.position.x, this.position.y, this.frameSize, this.frameSize);
 }
 
-},{}],12:[function(require,module,exports){
+},{}],13:[function(require,module,exports){
 "use strict";
 
 /* Classes and Libraries */
@@ -1323,7 +1430,7 @@ Player.prototype.jump = function() {
   }
 }
 
-},{}],13:[function(require,module,exports){
+},{}],14:[function(require,module,exports){
 
 
 
@@ -1378,7 +1485,7 @@ Tiles.prototype.isFloor = function(position){
 		return false
 	}
 }
-},{}],14:[function(require,module,exports){
+},{}],15:[function(require,module,exports){
 "use strict";
 
 module.exports = exports = {

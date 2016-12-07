@@ -9,6 +9,13 @@ const WALKING_RANGE_IN_PX = 600;
 const WALKING_SPEED_IN_PX = 5;
 const SHOOTING_RANGE_IN_PX = 350;
 const SHOOTING_SPEED = 1000/13;
+const ARROW_SPEED_IN_PX = 5;
+const MAXIMUM_ARROWS_GENERATED = 1;
+const FRAME = {source_frame_width: 64,
+               source_frame_height: 64,
+               dest_frame_width: 54,
+               dest_frame_height: 54
+};
 
 /**
  * @module ElfArcher
@@ -25,7 +32,7 @@ module.exports = exports = ElfArcher;
 function ElfArcher(startingPosition) {
   var image = new Image();
   image.src = 'assets/img/Sprite_Sheets/archers/elfarcher.png';
-  Archer.call(this, startingPosition, image, WALKING_RANGE_IN_PX, WALKING_SPEED_IN_PX, SHOOTING_RANGE_IN_PX, SHOOTING_SPEED);
+  Archer.call(this, startingPosition, image, WALKING_RANGE_IN_PX, WALKING_SPEED_IN_PX, SHOOTING_RANGE_IN_PX, SHOOTING_SPEED, MAXIMUM_ARROWS_GENERATED, ARROW_SPEED_IN_PX);
 }
 
 
@@ -37,6 +44,7 @@ function ElfArcher(startingPosition) {
  */
 ElfArcher.prototype.update = function(elapsedTime, playerPosition, entityManager) {
   Archer.prototype.update.call(this, elapsedTime, playerPosition, entityManager);
+  this.arrowsGenerated = 0;
 }
 
 /**
@@ -46,5 +54,5 @@ ElfArcher.prototype.update = function(elapsedTime, playerPosition, entityManager
  * @param {CanvasRenderingContext2D} ctx
  */
 ElfArcher.prototype.render = function(elapsedTime, ctx) {
-  Archer.prototype.render.call(this, elapsedTime, ctx);
+  Archer.prototype.render.call(this, elapsedTime, FRAME, ctx);
 }
