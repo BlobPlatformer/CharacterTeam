@@ -4,11 +4,9 @@
 const Game = require('./game');
 const Player = require('./player');
 const Tiles = require('./tiles');
-
-const EnemyBird = require('./bird');
-
 const EntityManager = require('./entity-manager');
 const ElfArcher = require('./enemies/archers/elf-archer');
+const EnemyBird = require('./enemies/flying/bird');
 
 
 
