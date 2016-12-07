@@ -136,7 +136,6 @@ Melee.prototype.stab = function() {
   this.state = STABBING;
   this.frame.x = 0;
   this.time = 0;
-  console.log(this.frame);
 }
 
 function onFloor(melee) {

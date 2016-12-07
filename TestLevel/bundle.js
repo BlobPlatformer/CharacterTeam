@@ -10,6 +10,7 @@ const EnemyBird = require('./bird');
 
 const EntityManager = require('./entity-manager');
 const ElfArcher = require('./enemies/archers/elf-archer');
+const Orc = require('./enemies/melee/orc_basic.js');
 
 
 
@@ -18,7 +19,15 @@ var canvas = document.getElementById('screen');
 var game = new Game(canvas, update, render);
 var player = new Player(0,16*35) ;
 
+var spritesheet = new Image();
+spritesheet.src = 'assets/basicTiles.jpg';
+var tiles = new Tiles();
+var map = tiles.getMap();
+var blocks = tiles.getBlocks();
+
+
 var bird = new EnemyBird({x:1, y: 100}, {start:0 , end:canvas.width });
+var orc = new Orc({x: 600, y: 200}, tiles);
 
 var entityManager = new EntityManager(player);
 
@@ -34,13 +43,9 @@ var groundHit = false;
 var elfarcher = new ElfArcher({x: 600, y: 543});
 entityManager.addEnemy(elfarcher);
 entityManager.addEnemy(bird);
+entityManager.addEnemy(orc);
 
 
-var spritesheet = new Image();
-spritesheet.src = 'assets/basicTiles.jpg';
-var tiles = new Tiles();
-var map = tiles.getMap();
-var blocks = tiles.getBlocks();
 
 
 /**
@@ -172,7 +177,7 @@ function render(elapsedTime, ctx) {
   player.render(elapsedTime, ctx);
 }
 
-},{"./bird":2,"./enemies/archers/elf-archer":6,"./entity-manager":7,"./game":8,"./player":10,"./tiles":11}],2:[function(require,module,exports){
+},{"./bird":2,"./enemies/archers/elf-archer":6,"./enemies/melee/orc_basic.js":8,"./entity-manager":9,"./game":10,"./player":12,"./tiles":13}],2:[function(require,module,exports){
 "use strict";
 
 /* Classes and Libraries */
@@ -518,7 +523,7 @@ Archer.prototype.render = function(elapasedTime, ctx) {
   ctx.drawImage(this.image, this.frame.x * FRAME_SIZE, this.frame.y * FRAME_SIZE, FRAME_SIZE, FRAME_SIZE, this.position.x, this.position.y, DEST_FRAME_SIZE, DEST_FRAME_SIZE);
 }
 
-},{"../../vector":12,"./arrow":5}],5:[function(require,module,exports){
+},{"../../vector":14,"./arrow":5}],5:[function(require,module,exports){
 "use strict";
 
 /* Constants */
@@ -574,7 +579,7 @@ Arrow.prototype.render = function(elapsedTime, ctx) {
   Particle.prototype.render.call(this, elapsedTime, ctx);
 }
 
-},{"../../particle":9}],6:[function(require,module,exports){
+},{"../../particle":11}],6:[function(require,module,exports){
 "use strict";
 
 /* Classes and Libraries */
@@ -628,6 +633,213 @@ ElfArcher.prototype.render = function(elapsedTime, ctx) {
 
 },{"./archer":4}],7:[function(require,module,exports){
 "use strict";
+
+/* Classes and Libraries */
+
+/* Constants */
+const CANVAS_WIDTH = 1120;
+const CANVAS_HEIGHT = 800;
+const IMAGE_SIZE = 64;
+const MS_PER_FRAME = 1000/8;
+
+const LEFT = "left";
+const RIGHT = "right";
+const WALKING = "walking";
+const STABBING = "stabbing";
+
+const WALKING_LEFT_Y = 9;                                                       // the row in orc_basic.png that the class should reference for walking left
+const WALKING_RIGHT_Y = 11;                                                     // row for walking right
+const STABBING_LEFT_Y = 5;                                                      // row for stabbing left
+const STABBING_RIGHT_Y = 7;                                                     // row for stabbing right
+
+const WALKING_MAX_FRAME = 8;                                                    // the number of frames in the complete walking animation
+const STABBING_MAX_FRAME = 7;                                                   // the number of frames in the complete stabbing animation
+const WALKING_SPEED = 1.5;                                                      // the speed at which the orc walks
+
+
+
+/**
+ * @module Enemy
+ * A class representing an enemy
+ */
+module.exports = exports = Melee;
+
+/**
+ * @constructor Enemy
+ * Base class for an enemy
+ * @param {object} startingPosition, object containing x and y coords
+ */
+function Melee(startingPosition, frameX, frameY, img, tiles) {
+  this.state = WALKING;                                                         // state
+  this.position = startingPosition;                                             // position
+  this.gravity = {x: 0, y: .5};                                                 // gravity that affects the melee unit
+  this.velocity = {x: 0, y: 0};                                                 // the unit's x and y velocity
+  this.floor = 16*35;                                                           // the tile that this unit is standing on
+  this.frame = {x: frameX, y: frameY};                                          // tells where to look in orc_basic.png
+  this.direction = LEFT;                                                        // direction
+  this.time = 0;                                                                // elapsed time since last update
+  this.img = img;                                                               // the image used to display the unit
+  this.tiles = tiles;                                                           // tile map used for walking on the ground
+
+
+}
+
+/**
+ * @function update
+ * Updates the enemy based on the supplied input
+ * @param {DOMHighResTimeStamp} elapedTime
+ * @param {object} playerPosition, object containing x and y coords
+ */
+Melee.prototype.update = function(elapsedTime, playerPosition, entityManager) {
+    if (this.velocity.y >= 0) onFloor(this);
+    if (this.position.x < -80) { this.direction = RIGHT; }
+    if (this.position.x > CANVAS_WIDTH) this.direction = LEFT;
+    switch (this.state) {
+      // this handles the walking case
+      case WALKING:
+        this.time += elapsedTime;
+        // walking left
+        if (this.direction == LEFT) {
+          this.frame.y = WALKING_LEFT_Y;
+          if (this.time >= MS_PER_FRAME) { this.frame.x++; this.time = 0; }
+          if (this.frame.x > WALKING_MAX_FRAME) this.frame.x = 0;
+          this.velocity.x -= .1;
+          if (this.velocity.x <= -WALKING_SPEED) this.velocity.x = -WALKING_SPEED;
+        }
+        // walking right
+        else {
+          this.frame.y = WALKING_RIGHT_Y;
+          if (this.time >= MS_PER_FRAME) { this.frame.x++; this.time = 0; }
+          if (this.frame.x > WALKING_MAX_FRAME) this.frame.x = 0;
+          this.velocity.x += .1;
+          if (this.velocity.x >= WALKING_SPEED) this.velocity.x = WALKING_SPEED;
+        }
+        break;
+      // this handles the stabbing case
+      case STABBING:
+        this.time += elapsedTime;
+        // stabbing left
+        if (this.direction == LEFT) {
+          this.frame.y = STABBING_LEFT_Y;
+          if (this.time >= MS_PER_FRAME) { this.frame.x++; this.time = 0; }
+          if (this.frame.x > STABBING_MAX_FRAME) { this.state = WALKING; this.frame.x = 0; this.frame.y = WALKING_LEFT_Y; }
+          this.velocity.x = 0;
+          if (this.position >= playerPosition.y + 100) {
+            this.state = WALKING;
+            this.frame.x = 0; }
+        }
+        // stabbing right
+        else {
+          this.frame.y = STABBING_RIGHT_Y;
+          if (this.time >= MS_PER_FRAME) { this.frame.x++; this.time = 0; }
+          if (this.frame.x > STABBING_MAX_FRAME) { this.state = WALKING; this.frame.x = 0; this.frame.y = WALKING_RIGHT_Y; }
+          this.velocity.x = 0;
+          if (this.position >= playerPosition.y + 100) {
+            this.state = WALKING;
+            this.frame.x = 0; }
+        }
+        break;
+  }
+
+  // move the player
+  this.position.x += this.velocity.x;
+  this.position.y += this.velocity.y;
+  if(this.velocity.y < 14 && this.position.x > 0 && this.position.x < CANVAS_WIDTH)
+  {
+   this.velocity.x += this.gravity.x;
+   this.velocity.y += this.gravity.y;
+  }
+
+}
+
+/**
+ * @function render
+ * Renders the enemy in world coordinates
+ * @param {DOMHighResTimeStamp} elapsedTime
+ * @param {CanvasRenderingContext2D} ctx
+ */
+Melee.prototype.render = function(elapasedTime, ctx) {
+  ctx.drawImage(this.img, IMAGE_SIZE*this.frame.x, IMAGE_SIZE*this.frame.y, IMAGE_SIZE, IMAGE_SIZE, this.position.x, this.position.y, 80, 80);
+  //ctx.rect(this.position.x + 2.5, this.position.y + 20, 75, 60);
+  //ctx.stroke();
+
+}
+
+// stabs
+Melee.prototype.stab = function() {
+  this.state = STABBING;
+  this.frame.x = 0;
+  this.time = 0;
+}
+
+function onFloor(melee) {
+  if (melee.tiles.isFloor({x:melee.position.x, y:melee.position.y + 48})) {
+    melee.velocity.y = 0;
+    melee.floor = (Math.floor((melee.position.y+32)/16) * 16) - 32;
+    melee.position.y = melee.floor + 4;
+  }
+  else {
+    melee.floor = CANVAS_HEIGHT - 32;
+  }
+}
+
+},{}],8:[function(require,module,exports){
+"use strict";
+
+/* Libraries */
+const Melee = require('./melee.js');
+
+/* Constants */
+
+/**
+ * @module Orc
+ * A class representing an Orc Enemy
+ */
+module.exports = exports = Orc;
+
+/**
+ * @constructor Orc
+ * Class for an orc enemy which shoots arrows
+ * @param {Object} startingPosition, object containing x and y coords
+ */
+function Orc(startingPosition, tiles) {
+  var image = new Image();
+  image.src = 'assets/img/Sprite_Sheets/melee/orc_basic.png';
+  Melee.call(this, startingPosition, 0, 9, image, tiles);
+}
+
+
+/**
+ * @function update
+ * Updates the orc enemy based on the supplied input
+ * @param {DOMHighResTimeStamp} elapedTime
+ * @param {object} playerPosition, object containing x and y coords
+ */
+Orc.prototype.update = function(elapsedTime, playerPosition, entityManager) {
+  Melee.prototype.update.call(this, elapsedTime, playerPosition, entityManager);
+}
+
+/**
+ * @function render
+ * Renders the orc enemy in world coordinates
+ * @param {DOMHighResTimeStamp} elapsedTime
+ * @param {CanvasRenderingContext2D} ctx
+ */
+Orc.prototype.render = function(elapsedTime, ctx) {
+  Melee.prototype.render.call(this, elapsedTime, ctx);
+}
+
+Orc.prototype.stab = function() {
+  Melee.prototype.stab.call(this);
+}
+
+},{"./melee.js":7}],9:[function(require,module,exports){
+"use strict";
+
+const LEFT = "left";
+const RIGHT = "right";
+const WALKING = "walking";
+const STABBING = "stabbing";
 
 /**
  * @module exports the EntityManager class
@@ -694,6 +906,9 @@ EntityManager.prototype.update = function(elapsedTime) {
     particle.update(elapsedTime);
   });
 
+  meleeInteractions(this, this.player);
+  collisions(this, this.player);
+
   // TODO update collectables
 }
 
@@ -717,7 +932,35 @@ EntityManager.prototype.render = function(elapsedTime, ctx) {
   // TODO render collectables
 }
 
-},{}],8:[function(require,module,exports){
+function meleeInteractions(me, player) {
+  me.enemies.forEach(function(enemy) {
+    if (enemy.state != "idle" && enemy.position.y + 80 > player.position.y && enemy.position.y < player.position.y + 35) {
+      if (enemy.direction == LEFT && enemy.position.x < player.position.x + 40
+          && enemy.position.x > player.position.x && enemy.state != STABBING) {
+            enemy.stab();
+          }
+      if (enemy.direction == RIGHT && enemy.position.x + 80 > player.position.x
+          && enemy.position.x < player.position.x && enemy.state != STABBING) {
+            enemy.stab();
+          }
+    }
+  });
+}
+
+function collisions(me, player) {
+  me.enemies.forEach(function(enemy, i) {
+    if (player.position.x + 32 > enemy.position.x + 5 &&
+        player.position.y < enemy.position.y + 80 &&
+        player.position.x < enemy.position.x + 75 &&
+        player.position.y + 32 > enemy.position.y + 20) {
+          if (player.position.y + 32 <= enemy.position.y + 25) me.enemies.splice(i, 1);
+          else { me.player.state = "DEAD"; me.player.velocity = {x: 0, y: 0};
+                 me.player.gravity = {x: 0, y: 0}; me.player.position = {x: -100, y: 100}; }
+        }
+  })
+}
+
+},{}],10:[function(require,module,exports){
 "use strict";
 
 /**
@@ -775,7 +1018,7 @@ Game.prototype.loop = function(newTime) {
   this.frontCtx.drawImage(this.backBuffer, 0, 0);
 }
 
-},{}],9:[function(require,module,exports){
+},{}],11:[function(require,module,exports){
 "use strict";
 
 /* Classes and Libraries */
@@ -840,7 +1083,7 @@ Particle.prototype.render = function(elapasedTime, ctx) {
     this.imageSize, this.imageSize, this.position.x, this.position.y, this.frameSize, this.frameSize);
 }
 
-},{}],10:[function(require,module,exports){
+},{}],12:[function(require,module,exports){
 "use strict";
 
 /* Classes and Libraries */
@@ -1080,7 +1323,7 @@ Player.prototype.jump = function() {
   }
 }
 
-},{}],11:[function(require,module,exports){
+},{}],13:[function(require,module,exports){
 
 
 
@@ -1135,7 +1378,7 @@ Tiles.prototype.isFloor = function(position){
 		return false
 	}
 }
-},{}],12:[function(require,module,exports){
+},{}],14:[function(require,module,exports){
 "use strict";
 
 module.exports = exports = {

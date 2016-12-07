@@ -1,5 +1,10 @@
 "use strict";
 
+const LEFT = "left";
+const RIGHT = "right";
+const WALKING = "walking";
+const STABBING = "stabbing";
+
 /**
  * @module exports the EntityManager class
  */
@@ -67,7 +72,7 @@ EntityManager.prototype.update = function(elapsedTime) {
 
   meleeInteractions(this, this.player);
   collisions(this, this.player);
-  
+
   // TODO update collectables
 }
 
@@ -112,7 +117,6 @@ function collisions(me, player) {
         player.position.y < enemy.position.y + 80 &&
         player.position.x < enemy.position.x + 75 &&
         player.position.y + 32 > enemy.position.y + 20) {
-          console.log(player.position.x + " " + player.position.y + " // " + enemy.position.x + " " + enemy.position.y);
           if (player.position.y + 32 <= enemy.position.y + 25) me.enemies.splice(i, 1);
           else { me.player.state = "DEAD"; me.player.velocity = {x: 0, y: 0};
                  me.player.gravity = {x: 0, y: 0}; me.player.position = {x: -100, y: 100}; }

@@ -18,6 +18,13 @@ var canvas = document.getElementById('screen');
 var game = new Game(canvas, update, render);
 var player = new Player(0,16*35) ;
 
+var spritesheet = new Image();
+spritesheet.src = 'assets/basicTiles.jpg';
+var tiles = new Tiles();
+var map = tiles.getMap();
+var blocks = tiles.getBlocks();
+
+
 var bird = new EnemyBird({x:1, y: 100}, {start:0 , end:canvas.width });
 var orc = new Orc({x: 600, y: 200}, tiles);
 
@@ -35,13 +42,9 @@ var groundHit = false;
 var elfarcher = new ElfArcher({x: 600, y: 543});
 entityManager.addEnemy(elfarcher);
 entityManager.addEnemy(bird);
+entityManager.addEnemy(orc);
 
 
-var spritesheet = new Image();
-spritesheet.src = 'assets/basicTiles.jpg';
-var tiles = new Tiles();
-var map = tiles.getMap();
-var blocks = tiles.getBlocks();
 
 
 /**
