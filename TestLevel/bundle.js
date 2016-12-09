@@ -5,11 +5,10 @@
 const Game = require('./game');
 const Player = require('./player');
 const Tiles = require('./tiles');
-
-const EnemyBird = require('./bird');
-
 const EntityManager = require('./entity-manager');
 const ElfArcher = require('./enemies/archers/elf-archer');
+const EnemyBird = require('./enemies/flying/bird');
+const Diver = require('./enemies/flying/diver');
 const OrcArcher = require('./enemies/archers/orc-archer');
 const Orc = require('./enemies/melee/orc_basic.js');
 
@@ -28,9 +27,8 @@ var blocks = tiles.getBlocks();
 
 
 var bird = new EnemyBird({x:1, y: 100}, {start:0 , end:canvas.width });
+var diver = new Diver({x:1, y: 100}, {start:0 , end:canvas.width });
 var orc = new Orc({x: 600, y: 200}, tiles);
-
-
 var entityManager = new EntityManager(player);
 
 var input = {
@@ -141,6 +139,7 @@ masterLoop(performance.now());
 function update(elapsedTime) {
 	player.update(elapsedTime, input);
   entityManager.update(elapsedTime);
+  diver.update(elapsedTime, player.position);
 
   if(player.velocity.y >= 0) {
     if(tiles.isFloor(player.position)) {
@@ -179,8 +178,10 @@ function render(elapsedTime, ctx) {
   //player
   entityManager.render(elapsedTime, ctx);
   player.render(elapsedTime, ctx);
+  diver.render(elapsedTime, ctx);
 }
 
+},{"./enemies/archers/elf-archer":4,"./enemies/flying/bird":5,"./enemies/flying/diver":7,"./entity-manager":8,"./game":9,"./player":11,"./tiles":12}],2:[function(require,module,exports){
 },{"./bird":2,"./enemies/archers/elf-archer":6,"./enemies/archers/orc-archer":7,"./enemies/melee/orc_basic.js":9,"./entity-manager":10,"./game":11,"./player":13,"./tiles":14}],2:[function(require,module,exports){
 "use strict";
 
@@ -530,11 +531,9 @@ Archer.prototype.update = function(elapsedTime, playerPosition, entityManager) {
       this.position.x += (this.direction == LEFT)? -this.walkingSpeed : this.walkingSpeed;
       break;
     case "shooting":
-      var arrowVelocity = {x: (this.direction == LEFT)? -this.arrowSpeed : this.arrowSpeed, y: 0}
-      if(this.frame.x == SHOOTING_FRAME) {
-        entityManager.addParticle(new Arrow({x: this.position.x, y: this.position.y - 12}, arrowVelocity));
-        this.arrowsGenerated = this.arrowsGenerated + 1;
-      }
+      if(this.frame.x == SHOOTING_FRAME) entityManager.addParticle(new Arrow({x: this.position.x, y: this.position.y - 12}, this.direction));
+      break;
+    default:
       break;
   }
 
@@ -544,9 +543,234 @@ Archer.prototype.update = function(elapsedTime, playerPosition, entityManager) {
  * @function render
  * Renders the archer enemy in world coordinates
  * @param {DOMHighResTimeStamp} elapsedTime
+ * @param {CanvasRenderingContext2D} ctx
+ */
+Archer.prototype.render = function(elapasedTime, ctx) {
+  ctx.drawImage(this.image, this.frame.x * FRAME_SIZE, this.frame.y * FRAME_SIZE, FRAME_SIZE, FRAME_SIZE, this.position.x, this.position.y, DEST_FRAME_SIZE, DEST_FRAME_SIZE);
+}
+
+},{"../../vector":13,"./arrow":3}],3:[function(require,module,exports){
+"use strict";
+
+/* Constants */
+const LEFT = "l";
+const RIGHT = "r";
+const ORIG_FRAME_SIZE = 64;
+const DEST_FRAME_SIZE = 54;
+const ARROW_SPEED_IN_PX = 5;
+const ARROW_LEFT = 0; // Frame position
+const ARROW_RIGHT = 1; // Frame position
+
+/* Classes and Libraries */
+const Particle = require('../../particle');
+
+/**
+ * @module Arrow
+ * A class representing an arrow
+ */
+module.exports = exports = Arrow;
+
+/**
+ * @constructor ElfArcher
+ * Class for an elf enemy which shoots arrows
+ * @param {Object} startingPosition, object containing x and y coords
+ */
+function Arrow(position, direction) {
+  var image =  new Image();
+  image.src = 'assets/img/Sprite_Sheets/archers/arrow.png';
+
+  var velocity = {x: (direction == LEFT)? -ARROW_SPEED_IN_PX: ARROW_SPEED_IN_PX, y: 0}
+
+  var frame = (direction == LEFT)? ARROW_LEFT : ARROW_RIGHT;
+
+  Particle.call(this, position, velocity, image, ORIG_FRAME_SIZE, frame, 0, DEST_FRAME_SIZE);
+}
+
+/**
+ * @function update
+ * Updates the arrow based on the supplied input
+ * @param {DOMHighResTimeStamp} elapedTime
+ */
+Arrow.prototype.update = function(elapsedTime) {
+  Particle.prototype.update.call(this, elapsedTime);
+}
+
+/**
+ * @function render
+ * Renders the arrow in world coordinates
+ * @param {DOMHighResTimeStamp} elapsedTime
+ * @param {CanvasRenderingContext2D} ctx
+ */
+Arrow.prototype.render = function(elapsedTime, ctx) {
+  Particle.prototype.render.call(this, elapsedTime, ctx);
+}
+
+},{"../../particle":10}],4:[function(require,module,exports){
+"use strict";
+
+/* Classes and Libraries */
+const Archer = require('./archer');
+
+
+/* Constants */
+const WALKING_RANGE_IN_PX = 600;
+const WALKING_SPEED_IN_PX = 5;
+const SHOOTING_RANGE_IN_PX = 350;
+const SHOOTING_SPEED = 1000/13;
+
+/**
+ * @module ElfArcher
+ * A class representing an archer enemy
+ */
+module.exports = exports = ElfArcher;
+
+
+/**
+ * @constructor ElfArcher
+ * Class for an elf enemy which shoots arrows
+ * @param {Object} startingPosition, object containing x and y coords
+ */
+function ElfArcher(startingPosition) {
+  var image = new Image();
+  image.src = 'assets/img/Sprite_Sheets/archers/elfarcher.png';
+  Archer.call(this, startingPosition, image, WALKING_RANGE_IN_PX, WALKING_SPEED_IN_PX, SHOOTING_RANGE_IN_PX, SHOOTING_SPEED);
+}
+
+
+/**
+ * @function update
+ * Updates the elf archer enemy based on the supplied input
+ * @param {DOMHighResTimeStamp} elapedTime
+ * @param {object} playerPosition, object containing x and y coords
+ */
+ElfArcher.prototype.update = function(elapsedTime, playerPosition, entityManager) {
+  Archer.prototype.update.call(this, elapsedTime, playerPosition, entityManager);
+}
+
+/**
+ * @function render
+ * Renders the elf archer enemy in world coordinates
+ * @param {DOMHighResTimeStamp} elapsedTime
+ * @param {CanvasRenderingContext2D} ctx
+ */
+ElfArcher.prototype.render = function(elapsedTime, ctx) {
+  Archer.prototype.render.call(this, elapsedTime, ctx);
+}
+
+},{"./archer":2}],5:[function(require,module,exports){
+"use strict";
+
+/* Classes and Libraries */
+const Bullets = require('./bullet_pool');
+
+/* Constants */
+const MS_PER_FRAME = 1000/8;
+const IMAGE_WIDTH = 706;
+const IMAGE_HEIGHT = 576;
+
+/**
+ * @module Enemy
+ * A class representing an enemy
+ */
+module.exports = exports = Bird;
+
+/**
+ * @constructor Enemy
+ * Base class for an enemy
+ * @param {object} startingPosition, object containing x and y coords
+ */
+function Bird(startingPosition,startendposition) {
+  this.state = "idle";
+  this.position = startingPosition;
+  this.start = startendposition.start;
+  this.end = startendposition.end - 40;
+  this.gravity = {x: 0, y: 1};
+  this.bulletpool = new Bullets(10);
+  this.floor = 17*35;
+  this.velocity = 4;
+  this.img = new Image();
+  this.img.src = 'assets/img/Sprite_Sheets/greenbird.png';
+  this.frame = 0; //Frame on X-axis
+  this.frameHeight = 0; //Frame on Y-axis
+  this.direction = "right";
+  this.time = 0;
+  this.bullet_time = 0;
+}
+
+/**
+ * @function update
+ * Updates the enemy based on the supplied input
+ * @param {DOMHighResTimeStamp} elapedTime
+ * @param {object} playerPosition, object containing x and y coords
+ */
+Bird.prototype.update = function(elapsedTime) {
+  this.bullet_time += elapsedTime;
+  var self = this;
+  if(this.bullet_time >= 2000){
+    this.bulletpool.add(this.position, {x: 0, y:6});
+    this.bullet_time = 0;
+  }
+  this.bulletpool.update(elapsedTime, function(bullet){
+    if(bullet.y >= self.floor) return true;
+    return false;
+  });
+  switch(this.direction){
+    case "right":
+      this.frameHeight = 0;
+      this.time += elapsedTime;
+      if(this.time >= MS_PER_FRAME){
+        this.frame ++;
+        this.time = 0;
+      }
+      if(this.position.x >= this.end){
+        this.direction = "left";
+        this.frame = 0;
+        console.log("goes left", this.position);
+      }
+      else{
+        this.position.x += this.velocity;
+        if(this.frame >= 8) this.frame = 0;
+      }
+      break;
+    case "left":
+      this.frameHeight = 1;
+      this.time += elapsedTime;
+      if(this.time >= MS_PER_FRAME){
+        this.frame ++;
+        this.time = 0;
+      }
+      if(this.position.x <= this.start){
+        this.direction = "right";
+        this.frame = 0;
+        console.log("goes right", this.position);
+      }
+      else{
+        this.position.x -= this.velocity;
+        if(this.frame >= 8) this.frame = 0;
+      var arrowVelocity = {x: (this.direction == LEFT)? -this.arrowSpeed : this.arrowSpeed, y: 0}
+      if(this.frame.x == SHOOTING_FRAME) {
+        entityManager.addParticle(new Arrow({x: this.position.x, y: this.position.y - 12}, arrowVelocity));
+        this.arrowsGenerated = this.arrowsGenerated + 1;
+      }
+      break;
+  }
+}
+
+/**
+ * @function render
+ * Renders the enemy in world coordinates
+ * @param {DOMHighResTimeStamp} elapsedTime
  * @param {object} frame, sets the source and destionation frame properties
  * @param {CanvasRenderingContext2D} ctx
  */
+Bird.prototype.render = function(elapasedTime, ctx) {
+  this.bulletpool.render(elapasedTime, ctx);
+  ctx.drawImage(this.img, IMAGE_WIDTH*this.frame, IMAGE_HEIGHT*this.frameHeight, IMAGE_WIDTH, IMAGE_HEIGHT, this.position.x, this.position.y, 40, 32);
+}
+
+},{"./bullet_pool":6}],6:[function(require,module,exports){
+"use strict";
+
 Archer.prototype.render = function(elapasedTime, frame ,ctx) {
   ctx.drawImage(this.image,
                 this.frame.x * frame.source_frame_width,
@@ -572,52 +796,118 @@ const ARROW_RIGHT = 1; // Frame position
 const Particle = require('../../particle');
 
 /**
- * @module Arrow
- * A class representing an arrow
+ * @module BulletPool
+ * A class for managing bullets in-game
+ * We use a Float32Array to hold our bullet info,
+ * as this creates a single memory buffer we can
+ * iterate over, minimizing cache misses.
+ * Values stored are: positionX, positionY, velocityX,
+ * velocityY in that order.
  */
-module.exports = exports = Arrow;
+module.exports = exports = BulletPool;
 
 /**
- * @constructor ElfArcher
- * Class for an elf enemy which shoots arrows
- * @param {Object} startingPosition, object containing x and y coords
+ * @constructor BulletPool
+ * Creates a BulletPool of the specified size
+ * @param {uint} size the maximum number of bullets to exits concurrently
  */
+function BulletPool(maxSize) {
+  this.pool = new Float32Array(4 * maxSize);
+  this.end = 0;
+  this.max = maxSize;
+  this.bulletRadius = 4;
+}
 function Arrow(position, velocity) {
   var image =  new Image();
   image.src = 'assets/img/Sprite_Sheets/archers/arrow.png';
 
   var frame = (velocity.x < 0)? ARROW_LEFT : ARROW_RIGHT;
 
-  Particle.call(this, position, velocity, image, ORIG_FRAME_SIZE, frame, 0, DEST_FRAME_SIZE);
+/**
+ * @function add
+ * Adds a new bullet to the end of the BulletPool.
+ * If there is no room left, no bullet is created.
+ * @param {Vector} position where the bullet begins
+ * @param {Vector} velocity the bullet's velocity
+*/
+BulletPool.prototype.add = function(position, velocity) {
+  if(this.end < this.max) {
+    this.pool[4*this.end] = position.x + 27;
+    this.pool[4*this.end+1] = position.y + 10.5;
+    this.pool[4*this.end+2] = velocity.x;
+    this.pool[4*this.end+3] = velocity.y;
+    this.end++;
+  }
 }
 
 /**
  * @function update
- * Updates the arrow based on the supplied input
- * @param {DOMHighResTimeStamp} elapedTime
+ * Updates the bullet using its stored velocity, and
+ * calls the callback function passing the transformed
+ * bullet.  If the callback returns true, the bullet is
+ * removed from the pool.
+ * Removed bullets are replaced with the last bullet's values
+ * and the size of the bullet array is reduced, keeping
+ * all live bullets at the front of the array.
+ * @param {DOMHighResTimeStamp} elapsedTime
+ * @param {function} callback called with the bullet's position,
+ * if the return value is true, the bullet is removed from the pool
  */
-Arrow.prototype.update = function(elapsedTime) {
-  Particle.prototype.update.call(this, elapsedTime);
+BulletPool.prototype.update = function(elapsedTime, callback) {
+  for(var i = 0; i < this.end; i++){
+    // Move the bullet
+    this.pool[4*i] += this.pool[4*i+2];
+    this.pool[4*i+1] += this.pool[4*i+3];
+    // If a callback was supplied, call it
+    if(callback && callback({
+      x: this.pool[4*i],
+      y: this.pool[4*i+1]
+    })) {
+      // Swap the current and last bullet if we
+      // need to remove the current bullet
+      this.pool[4*i] = this.pool[4*(this.end-1)];
+      this.pool[4*i+1] = this.pool[4*(this.end-1)+1];
+      this.pool[4*i+2] = this.pool[4*(this.end-1)+2];
+      this.pool[4*i+3] = this.pool[4*(this.end-1)+3];
+      // Reduce the total number of bullets by 1
+      this.end--;
+      // Reduce our iterator by 1 so that we update the
+      // freshly swapped bullet.
+      i--;
+    }
+  }
 }
 
 /**
  * @function render
- * Renders the arrow in world coordinates
+ * Renders all bullets in our array.
  * @param {DOMHighResTimeStamp} elapsedTime
  * @param {CanvasRenderingContext2D} ctx
  */
-Arrow.prototype.render = function(elapsedTime, ctx) {
-  Particle.prototype.render.call(this, elapsedTime, ctx);
+BulletPool.prototype.render = function(elapsedTime, ctx) {
+  // Render the bullets as a single path
+  ctx.save();
+  ctx.beginPath();
+  ctx.fillStyle = "black";
+  for(var i = 0; i < this.end; i++) {
+    ctx.moveTo(this.pool[4*i], this.pool[4*i+1]);
+    ctx.arc(this.pool[4*i], this.pool[4*i+1], this.bulletRadius, 0, 2*Math.PI);
+  }
+  ctx.fill();
+  ctx.restore();
 }
 
+},{}],7:[function(require,module,exports){
 },{"../../particle":12}],6:[function(require,module,exports){
 "use strict";
 
 /* Classes and Libraries */
-const Archer = require('./archer');
-
 
 /* Constants */
+const MS_PER_FRAME = 1000/8;
+const IMAGE_WIDTH = 927;
+const IMAGE_HEIGHT = 633;
+const ABSOLUTE_VELOCITY = 5;
 const WALKING_RANGE_IN_PX = 600;
 const WALKING_SPEED_IN_PX = 5;
 const SHOOTING_RANGE_IN_PX = 350;
@@ -631,30 +921,142 @@ const FRAME = {source_frame_width: 64,
 };
 
 /**
- * @module ElfArcher
- * A class representing an archer enemy
+ * @module Enemy
+ * A class representing an enemy
  */
-module.exports = exports = ElfArcher;
-
+module.exports = exports = Diver;
 
 /**
- * @constructor ElfArcher
- * Class for an elf enemy which shoots arrows
- * @param {Object} startingPosition, object containing x and y coords
+ * @constructor Enemy
+ * Base class for an enemy
+ * @param {object} startingPosition, object containing x and y coords
  */
+function Diver(startingPosition, startendposition) {
+  this.state = "right";
+  this.position = startingPosition;
+  this.flyingHeight = this.position.y;
+  this.start = startendposition.start;
+  this.end = startendposition.end - 40;
+  this.gravity = {x: 0, y: 1};
+  this.floor = 17*35;
+  this.velocity ={ x:ABSOLUTE_VELOCITY, y:0};
+  this.img = new Image();
+  this.img.src = 'assets/img/Sprite_Sheets/diver.png';
+  this.frame = 0; //Frame on X-axis
+  this.frameHeight = 0; //Frame on Y-axis
+  this.time = 0;
+  this.dive_time = 0;
+  this.playerDivePosition;
+  this.diving = false;
+  this.going_up = false;
 function ElfArcher(startingPosition) {
   var image = new Image();
   image.src = 'assets/img/Sprite_Sheets/archers/elfarcher.png';
   Archer.call(this, startingPosition, image, WALKING_RANGE_IN_PX, WALKING_SPEED_IN_PX, SHOOTING_RANGE_IN_PX, SHOOTING_SPEED, MAXIMUM_ARROWS_GENERATED, ARROW_SPEED_IN_PX);
 }
 
-
 /**
  * @function update
- * Updates the elf archer enemy based on the supplied input
+ * Updates the enemy based on the supplied input
  * @param {DOMHighResTimeStamp} elapedTime
  * @param {object} playerPosition, object containing x and y coords
  */
+Diver.prototype.update = function(elapsedTime, playerPosition) {
+  this.dive_time += elapsedTime;
+  if(this.dive_time >= 6000 && !this.diving && playerPosition.x < this.end && playerPosition.x > this.start){
+    this.diving = true;
+    this.playerDivePosition = playerPosition;
+    if(this.position.x >= this.playerDivePosition.x) this.state = "left_dive";
+    else this.state = "right_dive";
+    this.getDivingVelocity();
+  }
+  var self = this;
+  console.log(this.state);
+  switch(this.state){
+    case "right":
+      this.frameHeight = 0;
+      this.time += elapsedTime;
+      if(this.time >= MS_PER_FRAME){
+        this.frame ++;
+        this.time = 0;
+      }
+      if(this.position.x >= this.end){
+        this.state = "left";
+        this.frame = 0;
+      }
+      else{
+        this.position.x += this.velocity.x;
+        if(this.frame >= 8) this.frame = 0;
+      }
+      break;
+    case "left":
+      this.frameHeight = 1;
+      this.time += elapsedTime;
+      if(this.time >= MS_PER_FRAME){
+        this.frame ++;
+        this.time = 0;
+      }
+      if(this.position.x <= this.start){
+        this.state = "right";
+        this.frame = 0;
+      }
+      else{
+        this.position.x -= this.velocity.x;
+        if(this.frame >= 8) this.frame = 0;
+      }
+      break;
+    case "right_dive":
+      this.frameHeight = 0;
+      this.time += elapsedTime;
+      if(this.time >= MS_PER_FRAME){
+        this.frame ++;
+        this.time = 0;
+      }
+      console.log(this.position,playerPosition);
+      if(this.position.y >= playerPosition.y){
+        this.velocity.x = 0;
+        this.velocity.y = ABSOLUTE_VELOCITY;
+        this.going_up = true;
+      }
+      this.position.x += this.velocity.x;
+      if(this.going_up) this.position.y -= this.velocity.y;
+      else this.position.y += this.velocity.y;
+      if(this.frame >= 8) this.frame = 0;
+      console.log(this.position,playerPosition);
+      if(this.position.y <= this.flyingHeight){
+        this.velocity.x = ABSOLUTE_VELOCITY;
+        this.velocity.y = 0;
+        this.position.y = this.flyingHeight;
+        this.state = "right";
+        this.dive_time = 0;
+        this.diving = false;
+        this.going_up = false;
+      }
+      break;
+    case "left_dive":
+      this.frameHeight = 1;
+      this.time += elapsedTime;
+      if(this.time >= MS_PER_FRAME){
+        this.frame ++;
+        this.time = 0;
+      }
+      if(this.position.y >= playerPosition.y){
+        this.velocity.x = 0;
+        this.velocity.y = ABSOLUTE_VELOCITY;
+      }
+      this.position.x -= this.velocity.x;
+      this.position.y -= this.velocity.y;
+      if(this.frame >= 8) this.frame = 0;
+      if(this.position.y <= this.flyingHeight){
+        this.velocity.x = ABSOLUTE_VELOCITY;
+        this.velocity.y = 0;
+        this.position.y = this.flyingHeight;
+        this.state = "left";
+        this.dive_time = 0;
+        this.diving = false;
+      }
+      break;
+  }
 ElfArcher.prototype.update = function(elapsedTime, playerPosition, entityManager) {
   Archer.prototype.update.call(this, elapsedTime, playerPosition, entityManager);
   this.arrowsGenerated = 0;
@@ -662,15 +1064,26 @@ ElfArcher.prototype.update = function(elapsedTime, playerPosition, entityManager
 
 /**
  * @function render
- * Renders the elf archer enemy in world coordinates
+ * Renders the enemy in world coordinates
  * @param {DOMHighResTimeStamp} elapsedTime
  * @param {CanvasRenderingContext2D} ctx
  */
+Diver.prototype.render = function(elapasedTime, ctx) {
+  ctx.drawImage(this.img, IMAGE_WIDTH*this.frame, IMAGE_HEIGHT*this.frameHeight, IMAGE_WIDTH, IMAGE_HEIGHT, this.position.x, this.position.y, 40, 32);
 ElfArcher.prototype.render = function(elapsedTime, ctx) {
   Archer.prototype.render.call(this, elapsedTime, FRAME, ctx);
 }
 
-},{"./archer":4}],7:[function(require,module,exports){
+Diver.prototype.getDivingVelocity = function(){
+  var x = this.position.x - this.playerDivePosition.x;
+  var y = this.position.y - this.playerDivePosition.y;
+  //var distance = Math.sqrt(Math.pow(x, 2 ) + Math.pow(y, 2 ));
+  var rad = Math.atan(y/x);
+  this.velocity.x = Math.cos(rad) * ABSOLUTE_VELOCITY * 4;
+  this.velocity.y = Math.sin(rad) * ABSOLUTE_VELOCITY * 4;
+}
+
+},{}],8:[function(require,module,exports){
 "use strict";
 
 /* Classes and Libraries */
@@ -787,8 +1200,6 @@ function Melee(startingPosition, frameX, frameY, img, tiles) {
   this.time = 0;                                                                // elapsed time since last update
   this.img = img;                                                               // the image used to display the unit
   this.tiles = tiles;                                                           // tile map used for walking on the ground
-
-
 }
 
 /**
@@ -1039,6 +1450,7 @@ EntityManager.prototype.render = function(elapsedTime, ctx) {
   // TODO render collectables
 }
 
+},{}],9:[function(require,module,exports){
 function meleeInteractions(me, player) {
   me.enemies.forEach(function(enemy) {
     if (enemy.state != "idle" && enemy.position.y + 80 > player.position.y && enemy.position.y < player.position.y + 35) {
@@ -1125,6 +1537,7 @@ Game.prototype.loop = function(newTime) {
   this.frontCtx.drawImage(this.backBuffer, 0, 0);
 }
 
+},{}],10:[function(require,module,exports){
 },{}],12:[function(require,module,exports){
 "use strict";
 
@@ -1190,6 +1603,7 @@ Particle.prototype.render = function(elapasedTime, ctx) {
     this.imageSize, this.imageSize, this.position.x, this.position.y, this.frameSize, this.frameSize);
 }
 
+},{}],11:[function(require,module,exports){
 },{}],13:[function(require,module,exports){
 "use strict";
 
@@ -1430,6 +1844,7 @@ Player.prototype.jump = function() {
   }
 }
 
+},{}],12:[function(require,module,exports){
 },{}],14:[function(require,module,exports){
 
 
@@ -1485,6 +1900,7 @@ Tiles.prototype.isFloor = function(position){
 		return false
 	}
 }
+},{}],13:[function(require,module,exports){
 },{}],15:[function(require,module,exports){
 "use strict";
 
