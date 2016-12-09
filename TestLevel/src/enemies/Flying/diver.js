@@ -19,7 +19,7 @@ module.exports = exports = Diver;
  * Base class for an enemy
  * @param {object} startingPosition, object containing x and y coords
  */
-function Diver(startingPosition,startendposition) {
+function Diver(startingPosition, startendposition) {
   this.state = "right";
   this.position = startingPosition;
   this.flyingHeight = this.position.y;
@@ -34,8 +34,9 @@ function Diver(startingPosition,startendposition) {
   this.frameHeight = 0; //Frame on Y-axis
   this.time = 0;
   this.dive_time = 0;
-  this.playerDivePosition;s
+  this.playerDivePosition;
   this.diving = false;
+  this.going_up = false;
 }
 
 /**
@@ -54,6 +55,7 @@ Diver.prototype.update = function(elapsedTime, playerPosition) {
     this.getDivingVelocity();
   }
   var self = this;
+  console.log(this.state);
   switch(this.state){
     case "right":
       this.frameHeight = 0;
@@ -94,39 +96,48 @@ Diver.prototype.update = function(elapsedTime, playerPosition) {
         this.frame ++;
         this.time = 0;
       }
-      if(this.position.x >= playerPosition.x && this.position.y >= playerPosition.y){
+      console.log(this.position,playerPosition);
+      if(this.position.y >= playerPosition.y){
         this.velocity.x = 0;
         this.velocity.y = ABSOLUTE_VELOCITY;
+        this.going_up = true;
       }
       this.position.x += this.velocity.x;
-      this.position.y += this.velocity.y;
+      if(this.going_up) this.position.y -= this.velocity.y;
+      else this.position.y += this.velocity.y;
       if(this.frame >= 8) this.frame = 0;
-      if(this.position.y >= this.flyingHeight){
+      console.log(this.position,playerPosition);
+      if(this.position.y <= this.flyingHeight){
         this.velocity.x = ABSOLUTE_VELOCITY;
         this.velocity.y = 0;
         this.position.y = this.flyingHeight;
         this.state = "right";
+        this.dive_time = 0;
+        this.diving = false;
+        this.going_up = false;
       }
       break;
-    case "right_dive":
-      this.frameHeight = 0;
+    case "left_dive":
+      this.frameHeight = 1;
       this.time += elapsedTime;
       if(this.time >= MS_PER_FRAME){
         this.frame ++;
         this.time = 0;
       }
-      if(this.position.x <= playerPosition.x && this.position.y >= playerPosition.y){
+      if(this.position.y >= playerPosition.y){
         this.velocity.x = 0;
         this.velocity.y = ABSOLUTE_VELOCITY;
       }
-      this.position.x += this.velocity.x;
-      this.position.y += this.velocity.y;
+      this.position.x -= this.velocity.x;
+      this.position.y -= this.velocity.y;
       if(this.frame >= 8) this.frame = 0;
-      if(this.position.y >= this.flyingHeight){
+      if(this.position.y <= this.flyingHeight){
         this.velocity.x = ABSOLUTE_VELOCITY;
         this.velocity.y = 0;
         this.position.y = this.flyingHeight;
         this.state = "left";
+        this.dive_time = 0;
+        this.diving = false;
       }
       break;
   }
@@ -147,6 +158,6 @@ Diver.prototype.getDivingVelocity = function(){
   var y = this.position.y - this.playerDivePosition.y;
   //var distance = Math.sqrt(Math.pow(x, 2 ) + Math.pow(y, 2 ));
   var rad = Math.atan(y/x);
-  this.velocity.x = Math.cos(rad) * ABSOLUTE_VELOCITY;
-  this.velocity.y = Math.sin(rad) * ABSOLUTE_VELOCITY;
+  this.velocity.x = Math.cos(rad) * ABSOLUTE_VELOCITY * 4;
+  this.velocity.y = Math.sin(rad) * ABSOLUTE_VELOCITY * 4;
 }

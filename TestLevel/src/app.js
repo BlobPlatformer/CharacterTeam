@@ -7,6 +7,7 @@ const Tiles = require('./tiles');
 const EntityManager = require('./entity-manager');
 const ElfArcher = require('./enemies/archers/elf-archer');
 const EnemyBird = require('./enemies/flying/bird');
+const Diver = require('./enemies/flying/diver');
 
 
 
@@ -16,6 +17,7 @@ var game = new Game(canvas, update, render);
 var player = new Player(0,16*35) ;
 
 var bird = new EnemyBird({x:1, y: 100}, {start:0 , end:canvas.width });
+var diver = new Diver({x:1, y: 100}, {start:0 , end:canvas.width });
 
 var entityManager = new EntityManager(player);
 
