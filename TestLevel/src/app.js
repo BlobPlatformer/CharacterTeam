@@ -8,6 +8,8 @@ const EntityManager = require('./entity-manager');
 const ElfArcher = require('./enemies/archers/elf-archer');
 const EnemyBird = require('./enemies/flying/bird');
 const Diver = require('./enemies/flying/diver');
+const OrcArcher = require('./enemies/archers/orc-archer');
+const Orc = require('./enemies/melee/orc_basic.js');
 
 
 
@@ -16,9 +18,16 @@ var canvas = document.getElementById('screen');
 var game = new Game(canvas, update, render);
 var player = new Player(0,16*35) ;
 
+var spritesheet = new Image();
+spritesheet.src = 'assets/basicTiles.jpg';
+var tiles = new Tiles();
+var map = tiles.getMap();
+var blocks = tiles.getBlocks();
+
+
 var bird = new EnemyBird({x:1, y: 100}, {start:0 , end:canvas.width });
 var diver = new Diver({x:1, y: 100}, {start:0 , end:canvas.width });
-
+var orc = new Orc({x: 600, y: 200}, tiles);
 var entityManager = new EntityManager(player);
 
 var input = {
@@ -31,15 +40,13 @@ var groundHit = false;
 
 // Dummy enemy
 var elfarcher = new ElfArcher({x: 600, y: 543});
+var orcarcher = new OrcArcher({x: 1000, y: 533});
 entityManager.addEnemy(elfarcher);
+entityManager.addEnemy(orcarcher);
 entityManager.addEnemy(bird);
+entityManager.addEnemy(orc);
 
 
-var spritesheet = new Image();
-spritesheet.src = 'assets/basicTiles.jpg';
-var tiles = new Tiles();
-var map = tiles.getMap();
-var blocks = tiles.getBlocks();
 
 
 /**

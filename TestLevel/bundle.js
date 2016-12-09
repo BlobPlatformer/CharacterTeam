@@ -9,6 +9,8 @@ const EntityManager = require('./entity-manager');
 const ElfArcher = require('./enemies/archers/elf-archer');
 const EnemyBird = require('./enemies/flying/bird');
 const Diver = require('./enemies/flying/diver');
+const OrcArcher = require('./enemies/archers/orc-archer');
+const Orc = require('./enemies/melee/orc_basic.js');
 
 
 
@@ -17,9 +19,16 @@ var canvas = document.getElementById('screen');
 var game = new Game(canvas, update, render);
 var player = new Player(0,16*35) ;
 
+var spritesheet = new Image();
+spritesheet.src = 'assets/basicTiles.jpg';
+var tiles = new Tiles();
+var map = tiles.getMap();
+var blocks = tiles.getBlocks();
+
+
 var bird = new EnemyBird({x:1, y: 100}, {start:0 , end:canvas.width });
 var diver = new Diver({x:1, y: 100}, {start:0 , end:canvas.width });
-
+var orc = new Orc({x: 600, y: 200}, tiles);
 var entityManager = new EntityManager(player);
 
 var input = {
@@ -32,15 +41,13 @@ var groundHit = false;
 
 // Dummy enemy
 var elfarcher = new ElfArcher({x: 600, y: 543});
+var orcarcher = new OrcArcher({x: 1000, y: 533});
 entityManager.addEnemy(elfarcher);
+entityManager.addEnemy(orcarcher);
 entityManager.addEnemy(bird);
+entityManager.addEnemy(orc);
 
 
-var spritesheet = new Image();
-spritesheet.src = 'assets/basicTiles.jpg';
-var tiles = new Tiles();
-var map = tiles.getMap();
-var blocks = tiles.getBlocks();
 
 
 /**
@@ -175,6 +182,213 @@ function render(elapsedTime, ctx) {
 }
 
 },{"./enemies/archers/elf-archer":4,"./enemies/flying/bird":5,"./enemies/flying/diver":7,"./entity-manager":8,"./game":9,"./player":11,"./tiles":12}],2:[function(require,module,exports){
+},{"./bird":2,"./enemies/archers/elf-archer":6,"./enemies/archers/orc-archer":7,"./enemies/melee/orc_basic.js":9,"./entity-manager":10,"./game":11,"./player":13,"./tiles":14}],2:[function(require,module,exports){
+"use strict";
+
+/* Classes and Libraries */
+const Bullets = require('./bullet_pool');
+
+/* Constants */
+const MS_PER_FRAME = 1000/8;
+const IMAGE_WIDTH = 706;
+const IMAGE_HEIGHT = 576;
+
+/**
+ * @module Enemy
+ * A class representing an enemy
+ */
+module.exports = exports = Bird;
+
+/**
+ * @constructor Enemy
+ * Base class for an enemy
+ * @param {object} startingPosition, object containing x and y coords
+ */
+function Bird(startingPosition,startendposition) {
+  this.state = "idle";
+  this.position = startingPosition;
+  this.start = startendposition.start;
+  this.end = startendposition.end - 40;
+  this.gravity = {x: 0, y: 1};
+  this.bulletpool = new Bullets(10);
+  this.floor = 17*35;
+  this.velocity = 4;
+  this.img = new Image();
+  this.img.src = 'assets/img/Sprite_Sheets/greenbird.png';
+  this.frame = 0; //Frame on X-axis
+  this.frameHeight = 0; //Frame on Y-axis
+  this.direction = "right";
+  this.time = 0;
+  this.bullet_time = 0;
+}
+
+/**
+ * @function update
+ * Updates the enemy based on the supplied input
+ * @param {DOMHighResTimeStamp} elapedTime
+ * @param {object} playerPosition, object containing x and y coords
+ */
+Bird.prototype.update = function(elapsedTime) {
+  this.bullet_time += elapsedTime;
+  var self = this;
+  if(this.bullet_time >= 2000){
+    this.bulletpool.add(this.position, {x: 0, y:6});
+    this.bullet_time = 0;
+  }
+  this.bulletpool.update(elapsedTime, function(bullet){
+    if(bullet.y >= self.floor) return true;
+    return false;
+  });
+  switch(this.direction){
+    case "right":
+      this.frameHeight = 0;
+      this.time += elapsedTime;
+      if(this.time >= MS_PER_FRAME){
+        this.frame ++;
+        this.time = 0;
+      }
+      if(this.position.x >= this.end){
+        this.direction = "left";
+        this.frame = 0;
+        console.log("goes left", this.position);
+      }
+      else{
+        this.position.x += this.velocity;
+        if(this.frame >= 8) this.frame = 0;
+      }
+      break;
+    case "left":
+      this.frameHeight = 1;
+      this.time += elapsedTime;
+      if(this.time >= MS_PER_FRAME){
+        this.frame ++;
+        this.time = 0;
+      }
+      if(this.position.x <= this.start){
+        this.direction = "right";
+        this.frame = 0;
+        console.log("goes right", this.position);
+      }
+      else{
+        this.position.x -= this.velocity;
+        if(this.frame >= 8) this.frame = 0;
+      }
+      break;
+  }
+}
+
+/**
+ * @function render
+ * Renders the enemy in world coordinates
+ * @param {DOMHighResTimeStamp} elapsedTime
+ * @param {CanvasRenderingContext2D} ctx
+ */
+Bird.prototype.render = function(elapasedTime, ctx) {
+  this.bulletpool.render(elapasedTime, ctx);
+  ctx.drawImage(this.img, IMAGE_WIDTH*this.frame, IMAGE_HEIGHT*this.frameHeight, IMAGE_WIDTH, IMAGE_HEIGHT, this.position.x, this.position.y, 40, 32);
+}
+
+},{"./bullet_pool":3}],3:[function(require,module,exports){
+"use strict";
+
+/**
+ * @module BulletPool
+ * A class for managing bullets in-game
+ * We use a Float32Array to hold our bullet info,
+ * as this creates a single memory buffer we can
+ * iterate over, minimizing cache misses.
+ * Values stored are: positionX, positionY, velocityX,
+ * velocityY in that order.
+ */
+module.exports = exports = BulletPool;
+
+/**
+ * @constructor BulletPool
+ * Creates a BulletPool of the specified size
+ * @param {uint} size the maximum number of bullets to exits concurrently
+ */
+function BulletPool(maxSize) {
+  this.pool = new Float32Array(4 * maxSize);
+  this.end = 0;
+  this.max = maxSize;
+  this.bulletRadius = 4;
+}
+
+/**
+ * @function add
+ * Adds a new bullet to the end of the BulletPool.
+ * If there is no room left, no bullet is created.
+ * @param {Vector} position where the bullet begins
+ * @param {Vector} velocity the bullet's velocity
+*/
+BulletPool.prototype.add = function(position, velocity) {
+  if(this.end < this.max) {
+    this.pool[4*this.end] = position.x + 27;
+    this.pool[4*this.end+1] = position.y + 10.5;
+    this.pool[4*this.end+2] = velocity.x;
+    this.pool[4*this.end+3] = velocity.y;
+    this.end++;
+  }
+}
+
+/**
+ * @function update
+ * Updates the bullet using its stored velocity, and
+ * calls the callback function passing the transformed
+ * bullet.  If the callback returns true, the bullet is
+ * removed from the pool.
+ * Removed bullets are replaced with the last bullet's values
+ * and the size of the bullet array is reduced, keeping
+ * all live bullets at the front of the array.
+ * @param {DOMHighResTimeStamp} elapsedTime
+ * @param {function} callback called with the bullet's position,
+ * if the return value is true, the bullet is removed from the pool
+ */
+BulletPool.prototype.update = function(elapsedTime, callback) {
+  for(var i = 0; i < this.end; i++){
+    // Move the bullet
+    this.pool[4*i] += this.pool[4*i+2];
+    this.pool[4*i+1] += this.pool[4*i+3];
+    // If a callback was supplied, call it
+    if(callback && callback({
+      x: this.pool[4*i],
+      y: this.pool[4*i+1]
+    })) {
+      // Swap the current and last bullet if we
+      // need to remove the current bullet
+      this.pool[4*i] = this.pool[4*(this.end-1)];
+      this.pool[4*i+1] = this.pool[4*(this.end-1)+1];
+      this.pool[4*i+2] = this.pool[4*(this.end-1)+2];
+      this.pool[4*i+3] = this.pool[4*(this.end-1)+3];
+      // Reduce the total number of bullets by 1
+      this.end--;
+      // Reduce our iterator by 1 so that we update the
+      // freshly swapped bullet.
+      i--;
+    }
+  }
+}
+
+/**
+ * @function render
+ * Renders all bullets in our array.
+ * @param {DOMHighResTimeStamp} elapsedTime
+ * @param {CanvasRenderingContext2D} ctx
+ */
+BulletPool.prototype.render = function(elapsedTime, ctx) {
+  // Render the bullets as a single path
+  ctx.save();
+  ctx.beginPath();
+  ctx.fillStyle = "black";
+  for(var i = 0; i < this.end; i++) {
+    ctx.moveTo(this.pool[4*i], this.pool[4*i+1]);
+    ctx.arc(this.pool[4*i], this.pool[4*i+1], this.bulletRadius, 0, 2*Math.PI);
+  }
+  ctx.fill();
+  ctx.restore();
+}
+
+},{}],4:[function(require,module,exports){
 "use strict";
 
 /* Classes and Libraries */
@@ -182,8 +396,6 @@ const Vector = require('../../vector');
 const Arrow = require('./arrow');
 
 /* Constants */
-const FRAME_SIZE = 64;
-const DEST_FRAME_SIZE = 54;
 const MS_PER_FRAME = 1000/12;
 const LEFT = "l";
 const RIGHT = "r";
@@ -214,7 +426,7 @@ module.exports = exports = Archer;
  * @param {Int} walkingSpeed, speed of walking
  * @param {Int} shootingRange, distance from which can archer start shooting
  */
-function Archer(startingPosition, image, walkingRange, walkingSpeed, shootingRange, shootingSpeed) {
+function Archer(startingPosition, image, walkingRange, walkingSpeed, shootingRange, shootingSpeed, maximumArrows, arrowSpeed) {
   this.position = startingPosition;
   this.state = "idle";
   this.direction = LEFT;
@@ -228,13 +440,56 @@ function Archer(startingPosition, image, walkingRange, walkingSpeed, shootingRan
   this.walkingSpeed = walkingSpeed;
   this.shootingRange = shootingRange;
   this.shootingSpeed = shootingSpeed;
+  this.arrowsGenerated = 0;
+  this.maximumArrows = maximumArrows;
+  this.arrowSpeed = arrowSpeed;
   this.time = MS_PER_FRAME;
+}
+
+/**
+ * @function setFramesAccordingToState
+ * Updates the archer frames based on his state
+ */
+Archer.prototype.setFramesAccordingToState = function() {
+  switch (this.state) {
+    case "idle":
+      if(this.direction == LEFT) {
+        this.frame.y = WALK_LEFT_FRAME_Y;
+        this.frame.x = 0;
+        this.frame.maxX = IDLE_FRAME_MAX_X;
+      } else {
+        this.frame.y = WALK_RIGHT_FRAME_Y;
+        this.frame.x = 0;
+        this.frame.maxX = IDLE_FRAME_MAX_X;
+      }
+      break;
+    case "walking":
+      if(this.direction == LEFT) {
+        this.frame.y = WALK_LEFT_FRAME_Y;
+        this.frame.maxX = WALK_LEFT_FRAME_MAX_X;
+      } else {
+        this.frame.y = WALK_RIGHT_FRAME_Y;
+        this.frame.maxX = WALK_RIGHT_FRAME_MAX_X;
+      }
+      break;
+    case "shooting":
+      if(this.direction == LEFT) {
+        this.frame.y = SHOOT_LEFT_FRAME_Y;
+        this.frame.maxX = SHOOT_LEFT_FRAME_MAX_X;
+      } else {
+        this.frame.y = SHOOT_RIGHT_FRAME_Y;
+        this.frame.maxX = SHOOT_RIGHT_FRAME_MAX_X;
+      }
+      break;
+    default:
+      console.log(this.state);
+  }
 }
 
 /**
  * @function update
  * Updates the archer enemy based on the supplied input
- * @param {DOMHighResTimeStamp} elapedTime
+ * @param {DOMHighResTimeStamp} elapsedTime
  * @param {object} playerPosition, object containing x and y coords
  * @param {object} entityManager, object which maintains all particles
  */
@@ -257,38 +512,18 @@ Archer.prototype.update = function(elapsedTime, playerPosition, entityManager) {
   if(magnitude > this.walkingRange || Math.abs(vector.y) > 90) {
     // Player is far away/above/under the archer, stay idle, change frames only
     this.state = "idle";
-    if(this.direction == LEFT) {
-      this.frame.y = WALK_LEFT_FRAME_Y;
-      this.frame.x = 0;
-      this.frame.maxX = IDLE_FRAME_MAX_X;
-    } else {
-      this.frame.y = WALK_RIGHT_FRAME_Y;
-      this.frame.x = 0;
-      this.frame.maxX = IDLE_FRAME_MAX_X;
-    }
+    Archer.prototype.setFramesAccordingToState.call(this);
   }
   else if (magnitude > this.shootingRange) {
     // Player has reached the walking distance of the archer
     // Archer goes towards the player
     this.state = "walking";
-    if(this.direction == LEFT) {
-      this.frame.y = WALK_LEFT_FRAME_Y;
-      this.frame.maxX = WALK_LEFT_FRAME_MAX_X;
-    } else {
-      this.frame.y = WALK_RIGHT_FRAME_Y;
-      this.frame.maxX = WALK_RIGHT_FRAME_MAX_X;
-    }
+    Archer.prototype.setFramesAccordingToState.call(this);
   } else {
     // Player has reached the shooting distance of the archer
     // Archer starts shooting towards the player
     this.state = "shooting";
-    if(this.direction == LEFT) {
-      this.frame.y = SHOOT_LEFT_FRAME_Y;
-      this.frame.maxX = SHOOT_LEFT_FRAME_MAX_X;
-    } else {
-      this.frame.y = SHOOT_RIGHT_FRAME_Y;
-      this.frame.maxX = SHOOT_RIGHT_FRAME_MAX_X;
-    }
+    Archer.prototype.setFramesAccordingToState.call(this);
   }
 
   switch(this.state) {
@@ -512,6 +747,10 @@ Bird.prototype.update = function(elapsedTime) {
       else{
         this.position.x -= this.velocity;
         if(this.frame >= 8) this.frame = 0;
+      var arrowVelocity = {x: (this.direction == LEFT)? -this.arrowSpeed : this.arrowSpeed, y: 0}
+      if(this.frame.x == SHOOTING_FRAME) {
+        entityManager.addParticle(new Arrow({x: this.position.x, y: this.position.y - 12}, arrowVelocity));
+        this.arrowsGenerated = this.arrowsGenerated + 1;
       }
       break;
   }
@@ -521,6 +760,7 @@ Bird.prototype.update = function(elapsedTime) {
  * @function render
  * Renders the enemy in world coordinates
  * @param {DOMHighResTimeStamp} elapsedTime
+ * @param {object} frame, sets the source and destionation frame properties
  * @param {CanvasRenderingContext2D} ctx
  */
 Bird.prototype.render = function(elapasedTime, ctx) {
@@ -530,6 +770,30 @@ Bird.prototype.render = function(elapasedTime, ctx) {
 
 },{"./bullet_pool":6}],6:[function(require,module,exports){
 "use strict";
+
+Archer.prototype.render = function(elapasedTime, frame ,ctx) {
+  ctx.drawImage(this.image,
+                this.frame.x * frame.source_frame_width,
+                this.frame.y * frame.source_frame_height,
+                frame.source_frame_width,
+                frame.source_frame_height,
+                this.position.x, this.position.y,
+                frame.dest_frame_width,
+                frame.dest_frame_height
+  );
+}
+
+},{"../../vector":15,"./arrow":5}],5:[function(require,module,exports){
+"use strict";
+
+/* Constants */
+const ORIG_FRAME_SIZE = 64;
+const DEST_FRAME_SIZE = 54;
+const ARROW_LEFT = 0; // Frame position
+const ARROW_RIGHT = 1; // Frame position
+
+/* Classes and Libraries */
+const Particle = require('../../particle');
 
 /**
  * @module BulletPool
@@ -553,6 +817,11 @@ function BulletPool(maxSize) {
   this.max = maxSize;
   this.bulletRadius = 4;
 }
+function Arrow(position, velocity) {
+  var image =  new Image();
+  image.src = 'assets/img/Sprite_Sheets/archers/arrow.png';
+
+  var frame = (velocity.x < 0)? ARROW_LEFT : ARROW_RIGHT;
 
 /**
  * @function add
@@ -629,6 +898,7 @@ BulletPool.prototype.render = function(elapsedTime, ctx) {
 }
 
 },{}],7:[function(require,module,exports){
+},{"../../particle":12}],6:[function(require,module,exports){
 "use strict";
 
 /* Classes and Libraries */
@@ -638,6 +908,17 @@ const MS_PER_FRAME = 1000/8;
 const IMAGE_WIDTH = 927;
 const IMAGE_HEIGHT = 633;
 const ABSOLUTE_VELOCITY = 5;
+const WALKING_RANGE_IN_PX = 600;
+const WALKING_SPEED_IN_PX = 5;
+const SHOOTING_RANGE_IN_PX = 350;
+const SHOOTING_SPEED = 1000/13;
+const ARROW_SPEED_IN_PX = 5;
+const MAXIMUM_ARROWS_GENERATED = 1;
+const FRAME = {source_frame_width: 64,
+               source_frame_height: 64,
+               dest_frame_width: 54,
+               dest_frame_height: 54
+};
 
 /**
  * @module Enemy
@@ -668,6 +949,10 @@ function Diver(startingPosition, startendposition) {
   this.playerDivePosition;
   this.diving = false;
   this.going_up = false;
+function ElfArcher(startingPosition) {
+  var image = new Image();
+  image.src = 'assets/img/Sprite_Sheets/archers/elfarcher.png';
+  Archer.call(this, startingPosition, image, WALKING_RANGE_IN_PX, WALKING_SPEED_IN_PX, SHOOTING_RANGE_IN_PX, SHOOTING_SPEED, MAXIMUM_ARROWS_GENERATED, ARROW_SPEED_IN_PX);
 }
 
 /**
@@ -772,6 +1057,9 @@ Diver.prototype.update = function(elapsedTime, playerPosition) {
       }
       break;
   }
+ElfArcher.prototype.update = function(elapsedTime, playerPosition, entityManager) {
+  Archer.prototype.update.call(this, elapsedTime, playerPosition, entityManager);
+  this.arrowsGenerated = 0;
 }
 
 /**
@@ -782,6 +1070,8 @@ Diver.prototype.update = function(elapsedTime, playerPosition) {
  */
 Diver.prototype.render = function(elapasedTime, ctx) {
   ctx.drawImage(this.img, IMAGE_WIDTH*this.frame, IMAGE_HEIGHT*this.frameHeight, IMAGE_WIDTH, IMAGE_HEIGHT, this.position.x, this.position.y, 40, 32);
+ElfArcher.prototype.render = function(elapsedTime, ctx) {
+  Archer.prototype.render.call(this, elapsedTime, FRAME, ctx);
 }
 
 Diver.prototype.getDivingVelocity = function(){
@@ -795,6 +1085,279 @@ Diver.prototype.getDivingVelocity = function(){
 
 },{}],8:[function(require,module,exports){
 "use strict";
+
+/* Classes and Libraries */
+const Archer = require('./archer');
+
+
+/* Constants */
+const WALKING_RANGE_IN_PX = 800;
+const WALKING_SPEED_IN_PX = 7;
+const SHOOTING_RANGE_IN_PX = 500;
+const SHOOTING_SPEED = 1000/20;
+const ARROW_SPEED_IN_PX = 6.5;
+const MAXIMUM_ARROWS_GENERATED = 3;
+const DEST_FRAME_SIZE = 64;
+const FRAME = {source_frame_width: 64,
+               source_frame_height: 64,
+               dest_frame_width: 64,
+               dest_frame_height: 64
+};
+const PAUSE = 1000;
+
+/**
+ * @module OrcArcher
+ * A class representing an archer enemy
+ */
+module.exports = exports = OrcArcher;
+
+
+/**
+ * @constructor OrcArcher
+ * Class for an orc enemy which shoots arrows
+ * @param {Object} startingPosition, object containing x and y coords
+ */
+function OrcArcher(startingPosition) {
+  var image = new Image();
+  image.src = 'assets/img/Sprite_Sheets/archers/orcarcher.png';
+  Archer.call(this, startingPosition, image, WALKING_RANGE_IN_PX, WALKING_SPEED_IN_PX, SHOOTING_RANGE_IN_PX, SHOOTING_SPEED, MAXIMUM_ARROWS_GENERATED, ARROW_SPEED_IN_PX);
+  this.pauseTime = 0;
+}
+
+
+/**
+ * @function update
+ * Updates the orc archer enemy based on the supplied input
+ * @param {DOMHighResTimeStamp} elapedTime
+ * @param {object} playerPosition, object containing x and y coords
+ */
+OrcArcher.prototype.update = function(elapsedTime, playerPosition, entityManager) {
+  Archer.prototype.update.call(this, elapsedTime, playerPosition, entityManager);
+
+  if(this.arrowsGenerated == MAXIMUM_ARROWS_GENERATED) {
+    this.frame.x = (this.frame.x + 1) % this.frame.maxX;
+    this.time = PAUSE;
+    this.arrowsGenerated = 0;
+  }
+}
+
+/**
+ * @function render
+ * Renders the orc archer enemy in world coordinates
+ * @param {DOMHighResTimeStamp} elapsedTime
+ * @param {CanvasRenderingContext2D} ctx
+ */
+OrcArcher.prototype.render = function(elapsedTime, ctx) {
+  Archer.prototype.render.call(this, elapsedTime, FRAME, ctx);
+}
+
+},{"./archer":4}],8:[function(require,module,exports){
+"use strict";
+
+/* Classes and Libraries */
+
+/* Constants */
+const CANVAS_WIDTH = 1120;
+const CANVAS_HEIGHT = 800;
+const IMAGE_SIZE = 64;
+const MS_PER_FRAME = 1000/8;
+
+const LEFT = "left";
+const RIGHT = "right";
+const WALKING = "walking";
+const STABBING = "stabbing";
+
+const WALKING_LEFT_Y = 9;                                                       // the row in orc_basic.png that the class should reference for walking left
+const WALKING_RIGHT_Y = 11;                                                     // row for walking right
+const STABBING_LEFT_Y = 5;                                                      // row for stabbing left
+const STABBING_RIGHT_Y = 7;                                                     // row for stabbing right
+
+const WALKING_MAX_FRAME = 8;                                                    // the number of frames in the complete walking animation
+const STABBING_MAX_FRAME = 7;                                                   // the number of frames in the complete stabbing animation
+const WALKING_SPEED = 1.5;                                                      // the speed at which the orc walks
+
+
+
+/**
+ * @module Enemy
+ * A class representing an enemy
+ */
+module.exports = exports = Melee;
+
+/**
+ * @constructor Enemy
+ * Base class for an enemy
+ * @param {object} startingPosition, object containing x and y coords
+ */
+function Melee(startingPosition, frameX, frameY, img, tiles) {
+  this.state = WALKING;                                                         // state
+  this.position = startingPosition;                                             // position
+  this.gravity = {x: 0, y: .5};                                                 // gravity that affects the melee unit
+  this.velocity = {x: 0, y: 0};                                                 // the unit's x and y velocity
+  this.floor = 16*35;                                                           // the tile that this unit is standing on
+  this.frame = {x: frameX, y: frameY};                                          // tells where to look in orc_basic.png
+  this.direction = LEFT;                                                        // direction
+  this.time = 0;                                                                // elapsed time since last update
+  this.img = img;                                                               // the image used to display the unit
+  this.tiles = tiles;                                                           // tile map used for walking on the ground
+}
+
+/**
+ * @function update
+ * Updates the enemy based on the supplied input
+ * @param {DOMHighResTimeStamp} elapedTime
+ * @param {object} playerPosition, object containing x and y coords
+ */
+Melee.prototype.update = function(elapsedTime, playerPosition, entityManager) {
+    if (this.velocity.y >= 0) onFloor(this);
+    if (this.position.x < -80) { this.direction = RIGHT; }
+    if (this.position.x > CANVAS_WIDTH) this.direction = LEFT;
+    switch (this.state) {
+      // this handles the walking case
+      case WALKING:
+        this.time += elapsedTime;
+        // walking left
+        if (this.direction == LEFT) {
+          this.frame.y = WALKING_LEFT_Y;
+          if (this.time >= MS_PER_FRAME) { this.frame.x++; this.time = 0; }
+          if (this.frame.x > WALKING_MAX_FRAME) this.frame.x = 0;
+          this.velocity.x -= .1;
+          if (this.velocity.x <= -WALKING_SPEED) this.velocity.x = -WALKING_SPEED;
+        }
+        // walking right
+        else {
+          this.frame.y = WALKING_RIGHT_Y;
+          if (this.time >= MS_PER_FRAME) { this.frame.x++; this.time = 0; }
+          if (this.frame.x > WALKING_MAX_FRAME) this.frame.x = 0;
+          this.velocity.x += .1;
+          if (this.velocity.x >= WALKING_SPEED) this.velocity.x = WALKING_SPEED;
+        }
+        break;
+      // this handles the stabbing case
+      case STABBING:
+        this.time += elapsedTime;
+        // stabbing left
+        if (this.direction == LEFT) {
+          this.frame.y = STABBING_LEFT_Y;
+          if (this.time >= MS_PER_FRAME) { this.frame.x++; this.time = 0; }
+          if (this.frame.x > STABBING_MAX_FRAME) { this.state = WALKING; this.frame.x = 0; this.frame.y = WALKING_LEFT_Y; }
+          this.velocity.x = 0;
+          if (this.position >= playerPosition.y + 100) {
+            this.state = WALKING;
+            this.frame.x = 0; }
+        }
+        // stabbing right
+        else {
+          this.frame.y = STABBING_RIGHT_Y;
+          if (this.time >= MS_PER_FRAME) { this.frame.x++; this.time = 0; }
+          if (this.frame.x > STABBING_MAX_FRAME) { this.state = WALKING; this.frame.x = 0; this.frame.y = WALKING_RIGHT_Y; }
+          this.velocity.x = 0;
+          if (this.position >= playerPosition.y + 100) {
+            this.state = WALKING;
+            this.frame.x = 0; }
+        }
+        break;
+  }
+
+  // move the player
+  this.position.x += this.velocity.x;
+  this.position.y += this.velocity.y;
+  if(this.velocity.y < 14 && this.position.x > 0 && this.position.x < CANVAS_WIDTH)
+  {
+   this.velocity.x += this.gravity.x;
+   this.velocity.y += this.gravity.y;
+  }
+
+}
+
+/**
+ * @function render
+ * Renders the enemy in world coordinates
+ * @param {DOMHighResTimeStamp} elapsedTime
+ * @param {CanvasRenderingContext2D} ctx
+ */
+Melee.prototype.render = function(elapasedTime, ctx) {
+  ctx.drawImage(this.img, IMAGE_SIZE*this.frame.x, IMAGE_SIZE*this.frame.y, IMAGE_SIZE, IMAGE_SIZE, this.position.x, this.position.y, 80, 80);
+  //ctx.rect(this.position.x + 2.5, this.position.y + 20, 75, 60);
+  //ctx.stroke();
+
+}
+
+// stabs
+Melee.prototype.stab = function() {
+  this.state = STABBING;
+  this.frame.x = 0;
+  this.time = 0;
+}
+
+function onFloor(melee) {
+  if (melee.tiles.isFloor({x:melee.position.x, y:melee.position.y + 48})) {
+    melee.velocity.y = 0;
+    melee.floor = (Math.floor((melee.position.y+32)/16) * 16) - 32;
+    melee.position.y = melee.floor + 4;
+  }
+  else {
+    melee.floor = CANVAS_HEIGHT - 32;
+  }
+}
+
+},{}],9:[function(require,module,exports){
+"use strict";
+
+/* Libraries */
+const Melee = require('./melee.js');
+
+/* Constants */
+
+/**
+ * @module Orc
+ * A class representing an Orc Enemy
+ */
+module.exports = exports = Orc;
+
+/**
+ * @constructor Orc
+ * Class for an orc enemy which shoots arrows
+ * @param {Object} startingPosition, object containing x and y coords
+ */
+function Orc(startingPosition, tiles) {
+  var image = new Image();
+  image.src = 'assets/img/Sprite_Sheets/melee/orc_basic.png';
+  Melee.call(this, startingPosition, 0, 9, image, tiles);
+}
+
+
+/**
+ * @function update
+ * Updates the orc enemy based on the supplied input
+ * @param {DOMHighResTimeStamp} elapedTime
+ * @param {object} playerPosition, object containing x and y coords
+ */
+Orc.prototype.update = function(elapsedTime, playerPosition, entityManager) {
+  Melee.prototype.update.call(this, elapsedTime, playerPosition, entityManager);
+}
+
+/**
+ * @function render
+ * Renders the orc enemy in world coordinates
+ * @param {DOMHighResTimeStamp} elapsedTime
+ * @param {CanvasRenderingContext2D} ctx
+ */
+Orc.prototype.render = function(elapsedTime, ctx) {
+  Melee.prototype.render.call(this, elapsedTime, ctx);
+}
+
+Orc.prototype.stab = function() {
+  Melee.prototype.stab.call(this);
+}
+
+},{"./melee.js":8}],10:[function(require,module,exports){
+"use strict";
+
+const LEFT = "left";
+const RIGHT = "right";
+const WALKING = "walking";
+const STABBING = "stabbing";
 
 /**
  * @module exports the EntityManager class
@@ -861,6 +1424,9 @@ EntityManager.prototype.update = function(elapsedTime) {
     particle.update(elapsedTime);
   });
 
+  meleeInteractions(this, this.player);
+  collisions(this, this.player);
+
   // TODO update collectables
 }
 
@@ -885,6 +1451,35 @@ EntityManager.prototype.render = function(elapsedTime, ctx) {
 }
 
 },{}],9:[function(require,module,exports){
+function meleeInteractions(me, player) {
+  me.enemies.forEach(function(enemy) {
+    if (enemy.state != "idle" && enemy.position.y + 80 > player.position.y && enemy.position.y < player.position.y + 35) {
+      if (enemy.direction == LEFT && enemy.position.x < player.position.x + 40
+          && enemy.position.x > player.position.x && enemy.state != STABBING) {
+            enemy.stab();
+          }
+      if (enemy.direction == RIGHT && enemy.position.x + 80 > player.position.x
+          && enemy.position.x < player.position.x && enemy.state != STABBING) {
+            enemy.stab();
+          }
+    }
+  });
+}
+
+function collisions(me, player) {
+  me.enemies.forEach(function(enemy, i) {
+    if (player.position.x + 32 > enemy.position.x + 5 &&
+        player.position.y < enemy.position.y + 80 &&
+        player.position.x < enemy.position.x + 75 &&
+        player.position.y + 32 > enemy.position.y + 20) {
+          if (player.position.y + 32 <= enemy.position.y + 25) me.enemies.splice(i, 1);
+          else { me.player.state = "DEAD"; me.player.velocity = {x: 0, y: 0};
+                 me.player.gravity = {x: 0, y: 0}; me.player.position = {x: -100, y: 100}; }
+        }
+  })
+}
+
+},{}],11:[function(require,module,exports){
 "use strict";
 
 /**
@@ -943,6 +1538,7 @@ Game.prototype.loop = function(newTime) {
 }
 
 },{}],10:[function(require,module,exports){
+},{}],12:[function(require,module,exports){
 "use strict";
 
 /* Classes and Libraries */
@@ -1008,6 +1604,7 @@ Particle.prototype.render = function(elapasedTime, ctx) {
 }
 
 },{}],11:[function(require,module,exports){
+},{}],13:[function(require,module,exports){
 "use strict";
 
 /* Classes and Libraries */
@@ -1248,6 +1845,7 @@ Player.prototype.jump = function() {
 }
 
 },{}],12:[function(require,module,exports){
+},{}],14:[function(require,module,exports){
 
 
 
@@ -1303,6 +1901,7 @@ Tiles.prototype.isFloor = function(position){
 	}
 }
 },{}],13:[function(require,module,exports){
+},{}],15:[function(require,module,exports){
 "use strict";
 
 module.exports = exports = {

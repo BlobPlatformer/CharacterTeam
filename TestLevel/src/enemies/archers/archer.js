@@ -5,8 +5,6 @@ const Vector = require('../../vector');
 const Arrow = require('./arrow');
 
 /* Constants */
-const FRAME_SIZE = 64;
-const DEST_FRAME_SIZE = 54;
 const MS_PER_FRAME = 1000/12;
 const LEFT = "l";
 const RIGHT = "r";
@@ -37,7 +35,7 @@ module.exports = exports = Archer;
  * @param {Int} walkingSpeed, speed of walking
  * @param {Int} shootingRange, distance from which can archer start shooting
  */
-function Archer(startingPosition, image, walkingRange, walkingSpeed, shootingRange, shootingSpeed) {
+function Archer(startingPosition, image, walkingRange, walkingSpeed, shootingRange, shootingSpeed, maximumArrows, arrowSpeed) {
   this.position = startingPosition;
   this.state = "idle";
   this.direction = LEFT;
@@ -51,13 +49,56 @@ function Archer(startingPosition, image, walkingRange, walkingSpeed, shootingRan
   this.walkingSpeed = walkingSpeed;
   this.shootingRange = shootingRange;
   this.shootingSpeed = shootingSpeed;
+  this.arrowsGenerated = 0;
+  this.maximumArrows = maximumArrows;
+  this.arrowSpeed = arrowSpeed;
   this.time = MS_PER_FRAME;
+}
+
+/**
+ * @function setFramesAccordingToState
+ * Updates the archer frames based on his state
+ */
+Archer.prototype.setFramesAccordingToState = function() {
+  switch (this.state) {
+    case "idle":
+      if(this.direction == LEFT) {
+        this.frame.y = WALK_LEFT_FRAME_Y;
+        this.frame.x = 0;
+        this.frame.maxX = IDLE_FRAME_MAX_X;
+      } else {
+        this.frame.y = WALK_RIGHT_FRAME_Y;
+        this.frame.x = 0;
+        this.frame.maxX = IDLE_FRAME_MAX_X;
+      }
+      break;
+    case "walking":
+      if(this.direction == LEFT) {
+        this.frame.y = WALK_LEFT_FRAME_Y;
+        this.frame.maxX = WALK_LEFT_FRAME_MAX_X;
+      } else {
+        this.frame.y = WALK_RIGHT_FRAME_Y;
+        this.frame.maxX = WALK_RIGHT_FRAME_MAX_X;
+      }
+      break;
+    case "shooting":
+      if(this.direction == LEFT) {
+        this.frame.y = SHOOT_LEFT_FRAME_Y;
+        this.frame.maxX = SHOOT_LEFT_FRAME_MAX_X;
+      } else {
+        this.frame.y = SHOOT_RIGHT_FRAME_Y;
+        this.frame.maxX = SHOOT_RIGHT_FRAME_MAX_X;
+      }
+      break;
+    default:
+      console.log(this.state);
+  }
 }
 
 /**
  * @function update
  * Updates the archer enemy based on the supplied input
- * @param {DOMHighResTimeStamp} elapedTime
+ * @param {DOMHighResTimeStamp} elapsedTime
  * @param {object} playerPosition, object containing x and y coords
  * @param {object} entityManager, object which maintains all particles
  */
@@ -80,38 +121,18 @@ Archer.prototype.update = function(elapsedTime, playerPosition, entityManager) {
   if(magnitude > this.walkingRange || Math.abs(vector.y) > 90) {
     // Player is far away/above/under the archer, stay idle, change frames only
     this.state = "idle";
-    if(this.direction == LEFT) {
-      this.frame.y = WALK_LEFT_FRAME_Y;
-      this.frame.x = 0;
-      this.frame.maxX = IDLE_FRAME_MAX_X;
-    } else {
-      this.frame.y = WALK_RIGHT_FRAME_Y;
-      this.frame.x = 0;
-      this.frame.maxX = IDLE_FRAME_MAX_X;
-    }
+    Archer.prototype.setFramesAccordingToState.call(this);
   }
   else if (magnitude > this.shootingRange) {
     // Player has reached the walking distance of the archer
     // Archer goes towards the player
     this.state = "walking";
-    if(this.direction == LEFT) {
-      this.frame.y = WALK_LEFT_FRAME_Y;
-      this.frame.maxX = WALK_LEFT_FRAME_MAX_X;
-    } else {
-      this.frame.y = WALK_RIGHT_FRAME_Y;
-      this.frame.maxX = WALK_RIGHT_FRAME_MAX_X;
-    }
+    Archer.prototype.setFramesAccordingToState.call(this);
   } else {
     // Player has reached the shooting distance of the archer
     // Archer starts shooting towards the player
     this.state = "shooting";
-    if(this.direction == LEFT) {
-      this.frame.y = SHOOT_LEFT_FRAME_Y;
-      this.frame.maxX = SHOOT_LEFT_FRAME_MAX_X;
-    } else {
-      this.frame.y = SHOOT_RIGHT_FRAME_Y;
-      this.frame.maxX = SHOOT_RIGHT_FRAME_MAX_X;
-    }
+    Archer.prototype.setFramesAccordingToState.call(this);
   }
 
   switch(this.state) {
@@ -119,9 +140,11 @@ Archer.prototype.update = function(elapsedTime, playerPosition, entityManager) {
       this.position.x += (this.direction == LEFT)? -this.walkingSpeed : this.walkingSpeed;
       break;
     case "shooting":
-      if(this.frame.x == SHOOTING_FRAME) entityManager.addParticle(new Arrow({x: this.position.x, y: this.position.y - 12}, this.direction));
-      break;
-    default:
+      var arrowVelocity = {x: (this.direction == LEFT)? -this.arrowSpeed : this.arrowSpeed, y: 0}
+      if(this.frame.x == SHOOTING_FRAME) {
+        entityManager.addParticle(new Arrow({x: this.position.x, y: this.position.y - 12}, arrowVelocity));
+        this.arrowsGenerated = this.arrowsGenerated + 1;
+      }
       break;
   }
 
@@ -131,8 +154,17 @@ Archer.prototype.update = function(elapsedTime, playerPosition, entityManager) {
  * @function render
  * Renders the archer enemy in world coordinates
  * @param {DOMHighResTimeStamp} elapsedTime
+ * @param {object} frame, sets the source and destionation frame properties
  * @param {CanvasRenderingContext2D} ctx
  */
-Archer.prototype.render = function(elapasedTime, ctx) {
-  ctx.drawImage(this.image, this.frame.x * FRAME_SIZE, this.frame.y * FRAME_SIZE, FRAME_SIZE, FRAME_SIZE, this.position.x, this.position.y, DEST_FRAME_SIZE, DEST_FRAME_SIZE);
+Archer.prototype.render = function(elapasedTime, frame ,ctx) {
+  ctx.drawImage(this.image,
+                this.frame.x * frame.source_frame_width,
+                this.frame.y * frame.source_frame_height,
+                frame.source_frame_width,
+                frame.source_frame_height,
+                this.position.x, this.position.y,
+                frame.dest_frame_width,
+                frame.dest_frame_height
+  );
 }
