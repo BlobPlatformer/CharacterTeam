@@ -33,6 +33,9 @@ function Player(x,y) {
   this.direction = "right";
   this.time = MS_PER_FRAME;
 
+  this.height = 32;
+  this.width = 32;
+
   // testing something
   this.storedFH = 0;
   this.storedF = 0;
@@ -207,7 +210,7 @@ Player.prototype.update = function(elapsedTime, input) {
   // move the player
   this.position.x += this.velocity.x;
   this.position.y += this.velocity.y;
-  if(this.velocity.y < 14)
+  if(this.velocity.y < 10)
   {
     this.velocity.x += this.gravity.x;
     this.velocity.y += this.gravity.y;

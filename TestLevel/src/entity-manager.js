@@ -4,6 +4,7 @@ const LEFT = "left";
 const RIGHT = "right";
 const WALKING = "walking";
 const STABBING = "stabbing";
+const SWINGING = "swinging";
 
 /**
  * @module exports the EntityManager class
@@ -71,7 +72,7 @@ EntityManager.prototype.update = function(elapsedTime) {
   });
 
   meleeInteractions(this, this.player);
-  collisions(this, this.player);
+  collisions(this.enemies, this.player);
 
   // TODO update collectables
 }
@@ -100,26 +101,36 @@ function meleeInteractions(me, player) {
   me.enemies.forEach(function(enemy) {
     if (enemy.state != "idle" && enemy.position.y + 80 > player.position.y && enemy.position.y < player.position.y + 35) {
       if (enemy.direction == LEFT && enemy.position.x < player.position.x + 40
-          && enemy.position.x > player.position.x && enemy.state != STABBING) {
-            enemy.stab();
+          && enemy.position.x > player.position.x && enemy.state != STABBING && enemy.state != SWINGING) {
+            if (enemy.type == "orc_basic") enemy.stab();
+            if (enemy.type == "skeleton_basic") enemy.swing();
           }
       if (enemy.direction == RIGHT && enemy.position.x + 80 > player.position.x
-          && enemy.position.x < player.position.x && enemy.state != STABBING) {
-            enemy.stab();
+          && enemy.position.x < player.position.x && enemy.state != STABBING && enemy.state != SWINGING) {
+            if (enemy.type == "orc_basic") enemy.stab();
+            if (enemy.type == "skeleton_basic") enemy.swing();
           }
     }
   });
 }
 
-function collisions(me, player) {
-  me.enemies.forEach(function(enemy, i) {
-    if (player.position.x + 32 > enemy.position.x + 5 &&
-        player.position.y < enemy.position.y + 80 &&
-        player.position.x < enemy.position.x + 75 &&
-        player.position.y + 32 > enemy.position.y + 20) {
-          if (player.position.y + 32 <= enemy.position.y + 25) me.enemies.splice(i, 1);
-          else { me.player.state = "DEAD"; me.player.velocity = {x: 0, y: 0};
-                 me.player.gravity = {x: 0, y: 0}; me.player.position = {x: -100, y: 100}; }
+function collisions(enemy_array, player) {
+  enemy_array.forEach(function(enemy, i) {
+    var e_array = enemy_array;
+    if (enemy.hitboxDiff == null) enemy.hitboxDiff = {x:0, y:34};
+    if (enemy.height == null || enemy.width == null) {enemy.height = 64; enemy.width = 32;}
+    if (player.position.x + player.width > enemy.position.x + enemy.hitboxDiff.x &&
+        player.position.y < enemy.position.y + enemy.height &&
+        player.position.x < enemy.position.x + enemy.width - enemy.hitboxDiff.x &&
+        player.position.y + player.height > enemy.position.y + enemy.hitboxDiff.y) {
+          if (player.position.y + player.height <= enemy.position.y + enemy.hitboxDiff.y + 10) killEnemy(i, enemy, player, e_array);
+          else { player.position = {x: 0, y: 200}; console.log(player.position.y + " " + enemy.position.y + enemy.hitboxDiff.y + 10); }
         }
   })
+}
+
+function killEnemy(index, enemy, player, e_array) {
+  player.velocity.y = -10; player.state = "jump"; player.time = 0;
+  e_array.splice(index, 1);
+
 }
