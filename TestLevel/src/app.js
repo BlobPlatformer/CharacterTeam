@@ -15,15 +15,16 @@ const Skeleton = require('./enemies/melee/skeleton_basic.js');
 
 
 /* Global variables */
-var canvas = document.getElementById('screen');
-var game = new Game(canvas, update, render);
-var player = new Player(0,16*35) ;
-
-var spritesheet = new Image();
-spritesheet.src = 'assets/basicTiles.jpg';
 var tiles = new Tiles();
 var map = tiles.getMap();
 var blocks = tiles.getBlocks();
+
+var canvas = document.getElementById('screen');
+var game = new Game(canvas, update, render);
+var player = new Player({x:0,y:16*35}, tiles);
+
+var spritesheet = new Image();
+spritesheet.src = 'assets/basicTiles.jpg'
 
 
 var bird = new EnemyBird({x:1, y: 100}, {start:0 , end:canvas.width });
@@ -41,13 +42,13 @@ var input = {
 var groundHit = false;
 
 // Dummy enemy
-var elfarcher = new ElfArcher({x: 600, y: 543});
-var orcarcher = new OrcArcher({x: 1000, y: 533});
+var elfarcher = new ElfArcher({x: 780, y: 100}, tiles);
+var orcarcher = new OrcArcher({x: 520, y: 100}, tiles);
 entityManager.addEnemy(elfarcher);
 entityManager.addEnemy(orcarcher);
 entityManager.addEnemy(bird);
-entityManager.addEnemy(orc);
-entityManager.addEnemy(skelly);
+//entityManager.addEnemy(orc);
+//entityManager.addEnemy(skelly);
 
 
 
@@ -141,17 +142,6 @@ masterLoop(performance.now());
 function update(elapsedTime) {
 	player.update(elapsedTime, input);
   entityManager.update(elapsedTime);
-
-  if(player.velocity.y >= 0) {
-    if(tiles.isFloor(player.position)) {
-      //player.velocity = {x:0,y:0};
-      player.velocity.y = 0;
-      player.floor = (Math.floor((player.position.y+32)/16) * 16) - 32;
-    }
-    else {
-      player.floor = canvas.height - 32;
-    }
-  }
 }
 
 

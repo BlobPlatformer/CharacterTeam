@@ -5,8 +5,12 @@
 /* Constants */
 const CANVAS_WIDTH = 1120;
 const CANVAS_HEIGHT = 800;
-const IMAGE_SIZE = 64;
 const MS_PER_FRAME = 1000/8;
+const FRAME = {source_frame_width: 64,
+               source_frame_height: 64,
+               dest_frame_width: 32,
+               dest_frame_height: 32
+};
 
 /**
  * @module Player
@@ -19,9 +23,9 @@ module.exports = exports = Player;
  * Creates a player
  * @param {BulletPool} bullets the bullet pool
  */
-function Player(x,y) {
+function Player(position, tiles) {
   this.state = "idle";
-  this.position = {x: x, y: y};
+  this.position = position;
   this.velocity = {x: 0, y: 0};
   this.gravity = {x: 0, y: 1};
   this.floor = 16*35;
@@ -33,8 +37,7 @@ function Player(x,y) {
   this.direction = "right";
   this.time = MS_PER_FRAME;
 
-  this.height = 32;
-  this.width = 32;
+  this.tiles = tiles;
 
   // testing something
   this.storedFH = 0;
@@ -51,6 +54,10 @@ function Player(x,y) {
  * boolean properties: up, left, right, down
  */
 Player.prototype.update = function(elapsedTime, input) {
+
+  // Check if player is standing on the floor
+  onFloor.call(this);
+
   switch (this.state) {
     case "idle":
       this.time += elapsedTime;
@@ -229,7 +236,16 @@ Player.prototype.update = function(elapsedTime, input) {
  * @param {CanvasRenderingContext2D} ctx
  */
 Player.prototype.render = function(elapasedTime, ctx) {
-  ctx.drawImage(this.img, IMAGE_SIZE*this.frame, IMAGE_SIZE*this.frameHeight, IMAGE_SIZE, IMAGE_SIZE, this.position.x, this.position.y, 32, 32);
+  ctx.drawImage(this.img,
+                this.frame * FRAME.source_frame_width,
+                this.frameHeight * FRAME.source_frame_height,
+                FRAME.source_frame_width,
+                FRAME.source_frame_height,
+                this.position.x,
+                this.position.y,
+                FRAME.dest_frame_width,
+                FRAME.dest_frame_height
+  );
 }
 
 Player.prototype.jump = function() {
@@ -237,5 +253,21 @@ Player.prototype.jump = function() {
     this.time = 0;
     this.state = "jump";
     this.velocity.y = -13;
+  }
+}
+
+function onFloor() {
+  if(this.velocity.y >= 0) {
+    // Set the sizes of the frame which is truly displayed
+    var frame = {width: FRAME.dest_frame_width, height: FRAME.dest_frame_height};
+
+    if(this.tiles.isFloor(this.position, frame)) {
+      //this.velocity = {x:0,y:0};
+      this.velocity.y = 0;
+      this.floor = this.tiles.getFloor(this.position, frame);
+    }
+    else {
+      this.floor = CANVAS_HEIGHT - this.frame.height;
+    }
   }
 }
