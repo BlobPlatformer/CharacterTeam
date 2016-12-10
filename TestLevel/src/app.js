@@ -39,10 +39,10 @@ var input = {
 var groundHit = false;
 
 // Dummy enemy
-var elfarcher = new ElfArcher({x: 600, y: 543});
+var elfarcher = new ElfArcher({x: 780, y: 100}, tiles);
 var orcarcher = new OrcArcher({x: 1000, y: 533});
 entityManager.addEnemy(elfarcher);
-entityManager.addEnemy(orcarcher);
+//entityManager.addEnemy(orcarcher);
 entityManager.addEnemy(bird);
 entityManager.addEnemy(orc);
 

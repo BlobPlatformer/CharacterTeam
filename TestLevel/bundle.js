@@ -40,10 +40,10 @@ var input = {
 var groundHit = false;
 
 // Dummy enemy
-var elfarcher = new ElfArcher({x: 600, y: 543});
+var elfarcher = new ElfArcher({x: 780, y: 100}, tiles);
 var orcarcher = new OrcArcher({x: 1000, y: 533});
 entityManager.addEnemy(elfarcher);
-entityManager.addEnemy(orcarcher);
+//entityManager.addEnemy(orcarcher);
 entityManager.addEnemy(bird);
 entityManager.addEnemy(orc);
 
@@ -200,6 +200,8 @@ const SHOOT_LEFT_FRAME_MAX_X = 12;
 const SHOOT_RIGHT_FRAME_Y = 19;
 const SHOOT_RIGHT_FRAME_MAX_X = 12;
 const SHOOTING_FRAME = 8;
+const MAX_Y_VELOCITY = 8;
+const CANVAS_HEIGHT = 800;
 
 /**
  * @module Archer
@@ -217,7 +219,7 @@ module.exports = exports = Archer;
  * @param {Int} walkingSpeed, speed of walking
  * @param {Int} shootingRange, distance from which can archer start shooting
  */
-function Archer(startingPosition, image, walkingRange, walkingSpeed, shootingRange, shootingSpeed, maximumArrows, arrowSpeed) {
+function Archer(startingPosition, image, walkingRange, walkingSpeed, shootingRange, shootingSpeed, maximumArrows, arrowSpeed, tiles) {
   this.position = startingPosition;
   this.state = "idle";
   this.direction = LEFT;
@@ -235,6 +237,11 @@ function Archer(startingPosition, image, walkingRange, walkingSpeed, shootingRan
   this.maximumArrows = maximumArrows;
   this.arrowSpeed = arrowSpeed;
   this.time = MS_PER_FRAME;
+  // Gravity and other stuff
+  this.floor = 16*35; // May be parametrized
+  this.gravity = {x: 0, y: .1};
+  this.velocity = {x: 0, y: 0};
+  this.tiles = tiles;
 }
 
 /**
@@ -244,6 +251,7 @@ function Archer(startingPosition, image, walkingRange, walkingSpeed, shootingRan
 Archer.prototype.setFramesAccordingToState = function() {
   switch (this.state) {
     case "idle":
+    case "falling":
       if(this.direction == LEFT) {
         this.frame.y = WALK_LEFT_FRAME_Y;
         this.frame.x = 0;
@@ -272,8 +280,18 @@ Archer.prototype.setFramesAccordingToState = function() {
         this.frame.maxX = SHOOT_RIGHT_FRAME_MAX_X;
       }
       break;
-    default:
-      console.log(this.state);
+  }
+}
+
+function onFloor() {
+  if (this.tiles.isFloor({x:this.position.x, y:this.position.y})) {
+    this.velocity.y = 0;
+    this.floor = (Math.floor((this.position.y+32)/16) * 16) - 32;
+    this.position.y = this.floor;
+  }
+  else {
+    if(this.velocity.y < MAX_Y_VELOCITY) this.velocity.y += this.gravity.y;
+    this.floor = CANVAS_HEIGHT - 32;
   }
 }
 
@@ -287,8 +305,16 @@ Archer.prototype.setFramesAccordingToState = function() {
 Archer.prototype.update = function(elapsedTime, playerPosition, entityManager) {
   this.time -= elapsedTime;
 
+  // Check if the enemy has landed on the floor
+  onFloor.call(this);
+
+  if(this.state == "walking" && this.velocity.x < this.walkingSpeed) this.velocity.x += .1;
+  this.position.x += (this.direction == LEFT)? -this.velocity.x : this.velocity.x;
+  this.position.y += this.velocity.y;
+
   if(this.time > 0) return;
   this.frame.x = (this.frame.x + 1) % this.frame.maxX;
+
   if(this.state == "shooting") this.time = this.shootingSpeed;
   else this.time = MS_PER_FRAME;
 
@@ -298,11 +324,11 @@ Archer.prototype.update = function(elapsedTime, playerPosition, entityManager) {
   if(vector.x <= 0) this.direction = LEFT;
   else this.direction = RIGHT;
 
-
   // This if-else statement sets proper animation frames only
-  if(magnitude > this.walkingRange || Math.abs(vector.y) > 90) {
+  if(magnitude > this.walkingRange || Math.abs(vector.y) > 120) {
     // Player is far away/above/under the archer, stay idle, change frames only
     this.state = "idle";
+    this.velocity.x = 0;
     Archer.prototype.setFramesAccordingToState.call(this);
   }
   else if (magnitude > this.shootingRange) {
@@ -314,20 +340,14 @@ Archer.prototype.update = function(elapsedTime, playerPosition, entityManager) {
     // Player has reached the shooting distance of the archer
     // Archer starts shooting towards the player
     this.state = "shooting";
+    this.velocity.x = 0;
     Archer.prototype.setFramesAccordingToState.call(this);
-  }
 
-  switch(this.state) {
-    case "walking":
-      this.position.x += (this.direction == LEFT)? -this.walkingSpeed : this.walkingSpeed;
-      break;
-    case "shooting":
+    if(this.frame.x == SHOOTING_FRAME) {
       var arrowVelocity = {x: (this.direction == LEFT)? -this.arrowSpeed : this.arrowSpeed, y: 0}
-      if(this.frame.x == SHOOTING_FRAME) {
-        entityManager.addParticle(new Arrow({x: this.position.x, y: this.position.y - 12}, arrowVelocity));
-        this.arrowsGenerated = this.arrowsGenerated + 1;
-      }
-      break;
+      entityManager.addParticle(new Arrow({x: this.position.x, y: this.position.y - 12}, arrowVelocity));
+      this.arrowsGenerated = this.arrowsGenerated + 1;
+    }
   }
 
 }
@@ -411,7 +431,7 @@ const Archer = require('./archer');
 
 /* Constants */
 const WALKING_RANGE_IN_PX = 600;
-const WALKING_SPEED_IN_PX = 5;
+const WALKING_SPEED_IN_PX = 1;
 const SHOOTING_RANGE_IN_PX = 350;
 const SHOOTING_SPEED = 1000/13;
 const ARROW_SPEED_IN_PX = 5;
@@ -434,10 +454,10 @@ module.exports = exports = ElfArcher;
  * Class for an elf enemy which shoots arrows
  * @param {Object} startingPosition, object containing x and y coords
  */
-function ElfArcher(startingPosition) {
+function ElfArcher(startingPosition, tiles) {
   var image = new Image();
   image.src = 'assets/img/Sprite_Sheets/archers/elfarcher.png';
-  Archer.call(this, startingPosition, image, WALKING_RANGE_IN_PX, WALKING_SPEED_IN_PX, SHOOTING_RANGE_IN_PX, SHOOTING_SPEED, MAXIMUM_ARROWS_GENERATED, ARROW_SPEED_IN_PX);
+  Archer.call(this, startingPosition, image, WALKING_RANGE_IN_PX, WALKING_SPEED_IN_PX, SHOOTING_RANGE_IN_PX, SHOOTING_SPEED, MAXIMUM_ARROWS_GENERATED, ARROW_SPEED_IN_PX, tiles);
 }
 
 
