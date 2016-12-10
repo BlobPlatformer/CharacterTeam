@@ -11,6 +11,7 @@ const EnemyBird = require('./enemies/flying/bird');
 const Diver = require('./enemies/flying/diver');
 const OrcArcher = require('./enemies/archers/orc-archer');
 const Orc = require('./enemies/melee/orc_basic.js');
+const Skeleton = require('./enemies/melee/skeleton_basic.js');
 
 
 
@@ -29,6 +30,7 @@ var blocks = tiles.getBlocks();
 var bird = new EnemyBird({x:1, y: 100}, {start:0 , end:canvas.width });
 var diver = new Diver({x:1, y: 100}, {start:0 , end:canvas.width });
 var orc = new Orc({x: 600, y: 200}, tiles);
+var skelly = new Skeleton({x: 800, y: 200}, tiles);
 var entityManager = new EntityManager(player);
 
 var input = {
@@ -46,6 +48,7 @@ entityManager.addEnemy(elfarcher);
 entityManager.addEnemy(orcarcher);
 entityManager.addEnemy(bird);
 entityManager.addEnemy(orc);
+entityManager.addEnemy(skelly);
 
 
 
@@ -179,7 +182,7 @@ function render(elapsedTime, ctx) {
   player.render(elapsedTime, ctx);
 }
 
-},{"./enemies/archers/elf-archer":4,"./enemies/archers/orc-archer":5,"./enemies/flying/bird":6,"./enemies/flying/diver":8,"./enemies/melee/orc_basic.js":10,"./entity-manager":11,"./game":12,"./player":14,"./tiles":15}],2:[function(require,module,exports){
+},{"./enemies/archers/elf-archer":4,"./enemies/archers/orc-archer":5,"./enemies/flying/bird":6,"./enemies/flying/diver":8,"./enemies/melee/orc_basic.js":10,"./enemies/melee/skeleton_basic.js":11,"./entity-manager":12,"./game":13,"./player":15,"./tiles":16}],2:[function(require,module,exports){
 "use strict";
 
 /* Classes and Libraries */
@@ -351,7 +354,7 @@ Archer.prototype.render = function(elapasedTime, frame ,ctx) {
   );
 }
 
-},{"../../vector":16,"./arrow":3}],3:[function(require,module,exports){
+},{"../../vector":17,"./arrow":3}],3:[function(require,module,exports){
 "use strict";
 
 /* Constants */
@@ -402,7 +405,7 @@ Arrow.prototype.render = function(elapsedTime, ctx) {
   Particle.prototype.render.call(this, elapsedTime, ctx);
 }
 
-},{"../../particle":13}],4:[function(require,module,exports){
+},{"../../particle":14}],4:[function(require,module,exports){
 "use strict";
 
 /* Classes and Libraries */
@@ -916,6 +919,7 @@ const LEFT = "left";
 const RIGHT = "right";
 const WALKING = "walking";
 const STABBING = "stabbing";
+const SWINGING = "swinging";
 
 const WALKING_LEFT_Y = 9;                                                       // the row in orc_basic.png that the class should reference for walking left
 const WALKING_RIGHT_Y = 11;                                                     // row for walking right
@@ -924,7 +928,11 @@ const STABBING_RIGHT_Y = 7;                                                     
 
 const WALKING_MAX_FRAME = 8;                                                    // the number of frames in the complete walking animation
 const STABBING_MAX_FRAME = 7;                                                   // the number of frames in the complete stabbing animation
-const WALKING_SPEED = 1.5;                                                      // the speed at which the orc walks
+
+const SWINGING_LEFT_Y = 13;
+const SWINGING_RIGHT_Y = 15;
+const SWINGING_MAX_FRAME = 5;
+
 
 
 
@@ -939,7 +947,8 @@ module.exports = exports = Melee;
  * Base class for an enemy
  * @param {object} startingPosition, object containing x and y coords
  */
-function Melee(startingPosition, frameX, frameY, img, tiles) {
+function Melee(startingPosition, frameX, frameY, img, img2, tiles, height, width, hitboxDiff, type) {
+
   this.state = WALKING;                                                         // state
   this.position = startingPosition;                                             // position
   this.gravity = {x: 0, y: .5};                                                 // gravity that affects the melee unit
@@ -949,8 +958,16 @@ function Melee(startingPosition, frameX, frameY, img, tiles) {
   this.direction = LEFT;                                                        // direction
   this.time = 0;                                                                // elapsed time since last update
   this.img = img;                                                               // the image used to display the unit
+  this.img2 = img2;                                                             // a secondary image used in displaying certain enemies
   this.tiles = tiles;                                                           // tile map used for walking on the ground
-
+  this.height = height;                                                         // the height of the enemy
+  this.width = width;                                                           // the width of the enemy
+  this.hitboxDiff = hitboxDiff;                                                 // an {x,y} value saying how far off of the position the hitbox should start
+  this.walkingSpeed = 1;
+  this.type = type;
+  if (this.type == "orc_basic") this.walkingSpeed = 2.5;
+  if (this.type == "skeleton_basic") this.walkingSpeed = 1.25;
+  this.feet;
 
 }
 
@@ -974,7 +991,7 @@ Melee.prototype.update = function(elapsedTime, playerPosition, entityManager) {
           if (this.time >= MS_PER_FRAME) { this.frame.x++; this.time = 0; }
           if (this.frame.x > WALKING_MAX_FRAME) this.frame.x = 0;
           this.velocity.x -= .1;
-          if (this.velocity.x <= -WALKING_SPEED) this.velocity.x = -WALKING_SPEED;
+          if (this.velocity.x <= -this.walkingSpeed) this.velocity.x = -this.walkingSpeed;
         }
         // walking right
         else {
@@ -982,7 +999,7 @@ Melee.prototype.update = function(elapsedTime, playerPosition, entityManager) {
           if (this.time >= MS_PER_FRAME) { this.frame.x++; this.time = 0; }
           if (this.frame.x > WALKING_MAX_FRAME) this.frame.x = 0;
           this.velocity.x += .1;
-          if (this.velocity.x >= WALKING_SPEED) this.velocity.x = WALKING_SPEED;
+          if (this.velocity.x >= this.walkingSpeed) this.velocity.x = this.walkingSpeed;
         }
         break;
       // this handles the stabbing case
@@ -1004,7 +1021,34 @@ Melee.prototype.update = function(elapsedTime, playerPosition, entityManager) {
           if (this.time >= MS_PER_FRAME) { this.frame.x++; this.time = 0; }
           if (this.frame.x > STABBING_MAX_FRAME) { this.state = WALKING; this.frame.x = 0; this.frame.y = WALKING_RIGHT_Y; }
           this.velocity.x = 0;
+          if (this.position <= playerPosition.y + 100) {
+            this.state = WALKING;
+            this.frame.x = 0; }
+        }
+        break;
+      case SWINGING:
+        this.time += elapsedTime;
+        // swinging left
+        if (this.direction == LEFT) {
+          this.frame.y = SWINGING_LEFT_Y;
+          // switch frames.. might have to change images
+          if (this.time >= MS_PER_FRAME) {
+            this.frame.x++; this.time = 0; }
+          if (this.frame.x > SWINGING_MAX_FRAME) { this.state = WALKING; this.frame.x = 0; this.frame.y = WALKING_LEFT_Y; }
+          this.velocity.x = 0;
           if (this.position >= playerPosition.y + 100) {
+            this.state = WALKING;
+            this.frame.x = 0; }
+        }
+        // swinging right
+        if (this.direction == RIGHT) {
+          this.frame.y = SWINGING_RIGHT_Y;
+          // switch frames.. might have to change images
+          if (this.time >= MS_PER_FRAME) {
+            this.frame.x++; this.time = 0; }
+          if (this.frame.x > SWINGING_MAX_FRAME) { this.state = WALKING; this.frame.x = 0; this.frame.y = WALKING_RIGHT_Y; }
+          this.velocity.x = 0;
+          if (this.position <= playerPosition.y + 100) {
             this.state = WALKING;
             this.frame.x = 0; }
         }
@@ -1028,8 +1072,8 @@ Melee.prototype.update = function(elapsedTime, playerPosition, entityManager) {
  * @param {DOMHighResTimeStamp} elapsedTime
  * @param {CanvasRenderingContext2D} ctx
  */
-Melee.prototype.render = function(elapasedTime, ctx) {
-  ctx.drawImage(this.img, IMAGE_SIZE*this.frame.x, IMAGE_SIZE*this.frame.y, IMAGE_SIZE, IMAGE_SIZE, this.position.x, this.position.y, 80, 80);
+Melee.prototype.render = function(elapasedTime, ctx, drawWidth, drawHeight) {
+  ctx.drawImage(this.img, IMAGE_SIZE*this.frame.x, IMAGE_SIZE*this.frame.y, IMAGE_SIZE, IMAGE_SIZE, this.position.x, this.position.y, drawWidth, drawHeight);
   //ctx.rect(this.position.x + 2.5, this.position.y + 20, 75, 60);
   //ctx.stroke();
 
@@ -1042,11 +1086,20 @@ Melee.prototype.stab = function() {
   this.time = 0;
 }
 
+// swings
+Melee.prototype.swing = function() {
+  this.state = SWINGING;
+  this.frame.x = 0;
+  this.time = 0;
+}
+
 function onFloor(melee) {
-  if (melee.tiles.isFloor({x:melee.position.x, y:melee.position.y + 48})) {
+  if (melee.type == "orc_basic") melee.feet = 48;
+  if (melee.type == "skeleton_basic") melee.feet = 42;
+  if (melee.tiles.isFloor({x:melee.position.x, y:melee.position.y + melee.feet})) {
     melee.velocity.y = 0;
     melee.floor = (Math.floor((melee.position.y+32)/16) * 16) - 32;
-    melee.position.y = melee.floor + 4;
+    melee.position.y = melee.floor + (52-melee.feet);
   }
   else {
     melee.floor = CANVAS_HEIGHT - 32;
@@ -1075,7 +1128,7 @@ module.exports = exports = Orc;
 function Orc(startingPosition, tiles) {
   var image = new Image();
   image.src = 'assets/img/Sprite_Sheets/melee/orc_basic.png';
-  Melee.call(this, startingPosition, 0, 9, image, tiles);
+  Melee.call(this, startingPosition, 0, 9, image, image, tiles, 80, 80, {x: 10, y: 20}, "orc_basic");
 }
 
 
@@ -1096,7 +1149,7 @@ Orc.prototype.update = function(elapsedTime, playerPosition, entityManager) {
  * @param {CanvasRenderingContext2D} ctx
  */
 Orc.prototype.render = function(elapsedTime, ctx) {
-  Melee.prototype.render.call(this, elapsedTime, ctx);
+  Melee.prototype.render.call(this, elapsedTime, ctx, 80, 80);
 }
 
 Orc.prototype.stab = function() {
@@ -1106,10 +1159,63 @@ Orc.prototype.stab = function() {
 },{"./melee.js":9}],11:[function(require,module,exports){
 "use strict";
 
+/* Libraries */
+const Melee = require('./melee.js');
+
+/* Constants */
+
+/**
+ * @module Skelly
+ * A class representing an Orc Enemy
+ */
+module.exports = exports = Skeleton;
+
+/**
+ * @constructor Orc
+ * Class for an orc enemy which shoots arrows
+ * @param {Object} startingPosition, object containing x and y coords
+ */
+function Skeleton(startingPosition, tiles) {
+  var image = new Image();
+  image.src = 'assets/img/Sprite_Sheets/melee/skeleton_dagger_walk.png';
+  var image2 = new Image();
+  image2.src = 'assets/img/Sprite_Sheets/melee/skeleton_dagger_swing.png';
+  Melee.call(this, startingPosition, 0, 9, image, image2, tiles, 80, 80, {x: 8, y: 22}, "skeleton_basic");
+}
+
+
+/**
+ * @function update
+ * Updates the skeleton enemy based on the supplied input
+ * @param {DOMHighResTimeStamp} elapedTime
+ * @param {object} playerPosition, object containing x and y coords
+ */
+Skeleton.prototype.update = function(elapsedTime, playerPosition, entityManager) {
+  Melee.prototype.update.call(this, elapsedTime, playerPosition, entityManager);
+}
+
+/**
+ * @function render
+ * Renders the orc enemy in world coordinates
+ * @param {DOMHighResTimeStamp} elapsedTime
+ * @param {CanvasRenderingContext2D} ctx
+ */
+Skeleton.prototype.render = function(elapsedTime, ctx) {
+  Melee.prototype.render.call(this, elapsedTime, ctx, 75, 75);
+}
+
+Skeleton.prototype.swing = function() {
+  Melee.prototype.swing.call(this);
+}
+
+},{"./melee.js":9}],12:[function(require,module,exports){
+"use strict";
+
 const LEFT = "left";
 const RIGHT = "right";
 const WALKING = "walking";
 const STABBING = "stabbing";
+const SWINGING = "swinging";
 
 /**
  * @module exports the EntityManager class
@@ -1177,7 +1283,7 @@ EntityManager.prototype.update = function(elapsedTime) {
   });
 
   meleeInteractions(this, this.player);
-  collisions(this, this.player);
+  collisions(this.enemies, this.player);
 
   // TODO update collectables
 }
@@ -1206,31 +1312,41 @@ function meleeInteractions(me, player) {
   me.enemies.forEach(function(enemy) {
     if (enemy.state != "idle" && enemy.position.y + 80 > player.position.y && enemy.position.y < player.position.y + 35) {
       if (enemy.direction == LEFT && enemy.position.x < player.position.x + 40
-          && enemy.position.x > player.position.x && enemy.state != STABBING) {
-            enemy.stab();
+          && enemy.position.x > player.position.x && enemy.state != STABBING && enemy.state != SWINGING) {
+            if (enemy.type == "orc_basic") enemy.stab();
+            if (enemy.type == "skeleton_basic") enemy.swing();
           }
       if (enemy.direction == RIGHT && enemy.position.x + 80 > player.position.x
-          && enemy.position.x < player.position.x && enemy.state != STABBING) {
-            enemy.stab();
+          && enemy.position.x < player.position.x && enemy.state != STABBING && enemy.state != SWINGING) {
+            if (enemy.type == "orc_basic") enemy.stab();
+            if (enemy.type == "skeleton_basic") enemy.swing();
           }
     }
   });
 }
 
-function collisions(me, player) {
-  me.enemies.forEach(function(enemy, i) {
-    if (player.position.x + 32 > enemy.position.x + 5 &&
-        player.position.y < enemy.position.y + 80 &&
-        player.position.x < enemy.position.x + 75 &&
-        player.position.y + 32 > enemy.position.y + 20) {
-          if (player.position.y + 32 <= enemy.position.y + 25) me.enemies.splice(i, 1);
-          else { me.player.state = "DEAD"; me.player.velocity = {x: 0, y: 0};
-                 me.player.gravity = {x: 0, y: 0}; me.player.position = {x: -100, y: 100}; }
+function collisions(enemy_array, player) {
+  enemy_array.forEach(function(enemy, i) {
+    var e_array = enemy_array;
+    if (enemy.hitboxDiff == null) enemy.hitboxDiff = {x:0, y:34};
+    if (enemy.height == null || enemy.width == null) {enemy.height = 64; enemy.width = 32;}
+    if (player.position.x + player.width > enemy.position.x + enemy.hitboxDiff.x &&
+        player.position.y < enemy.position.y + enemy.height &&
+        player.position.x < enemy.position.x + enemy.width - enemy.hitboxDiff.x &&
+        player.position.y + player.height > enemy.position.y + enemy.hitboxDiff.y) {
+          if (player.position.y + player.height <= enemy.position.y + enemy.hitboxDiff.y + 10) killEnemy(i, enemy, player, e_array);
+          else { player.position = {x: 0, y: 200}; console.log(player.position.y + " " + enemy.position.y + enemy.hitboxDiff.y + 10); }
         }
   })
 }
 
-},{}],12:[function(require,module,exports){
+function killEnemy(index, enemy, player, e_array) {
+  player.velocity.y = -10; player.state = "jump"; player.time = 0;
+  e_array.splice(index, 1);
+
+}
+
+},{}],13:[function(require,module,exports){
 "use strict";
 
 /**
@@ -1288,7 +1404,7 @@ Game.prototype.loop = function(newTime) {
   this.frontCtx.drawImage(this.backBuffer, 0, 0);
 }
 
-},{}],13:[function(require,module,exports){
+},{}],14:[function(require,module,exports){
 "use strict";
 
 /* Classes and Libraries */
@@ -1353,7 +1469,7 @@ Particle.prototype.render = function(elapasedTime, ctx) {
     this.imageSize, this.imageSize, this.position.x, this.position.y, this.frameSize, this.frameSize);
 }
 
-},{}],14:[function(require,module,exports){
+},{}],15:[function(require,module,exports){
 "use strict";
 
 /* Classes and Libraries */
@@ -1388,6 +1504,9 @@ function Player(x,y) {
   this.frameHeight = 0;
   this.direction = "right";
   this.time = MS_PER_FRAME;
+
+  this.height = 32;
+  this.width = 32;
 
   // testing something
   this.storedFH = 0;
@@ -1563,7 +1682,7 @@ Player.prototype.update = function(elapsedTime, input) {
   // move the player
   this.position.x += this.velocity.x;
   this.position.y += this.velocity.y;
-  if(this.velocity.y < 14)
+  if(this.velocity.y < 10)
   {
     this.velocity.x += this.gravity.x;
     this.velocity.y += this.gravity.y;
@@ -1593,7 +1712,7 @@ Player.prototype.jump = function() {
   }
 }
 
-},{}],15:[function(require,module,exports){
+},{}],16:[function(require,module,exports){
 
 
 
@@ -1648,7 +1767,7 @@ Tiles.prototype.isFloor = function(position){
 		return false
 	}
 }
-},{}],16:[function(require,module,exports){
+},{}],17:[function(require,module,exports){
 "use strict";
 
 module.exports = exports = {
