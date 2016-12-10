@@ -190,10 +190,11 @@ Melee.prototype.swing = function() {
 function onFloor(melee) {
   if (melee.type == "orc_basic") melee.feet = 48;
   if (melee.type == "skeleton_basic") melee.feet = 42;
-  if (melee.tiles.isFloor({x:melee.position.x, y:melee.position.y + melee.feet})) {
+  var frame = {width: melee.width, height: melee.height};
+  if (melee.tiles.isFloor({x:melee.position.x, y:melee.position.y}, frame)) {
     melee.velocity.y = 0;
     melee.floor = (Math.floor((melee.position.y+32)/16) * 16) - 32;
-    melee.position.y = melee.floor + (52-melee.feet);
+    //melee.position.y = melee.floor + (52-melee.feet);
   }
   else {
     melee.floor = CANVAS_HEIGHT - 32;

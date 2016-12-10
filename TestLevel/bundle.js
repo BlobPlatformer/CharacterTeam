@@ -48,8 +48,8 @@ var orcarcher = new OrcArcher({x: 520, y: 100}, tiles);
 entityManager.addEnemy(elfarcher);
 entityManager.addEnemy(orcarcher);
 entityManager.addEnemy(bird);
-//entityManager.addEnemy(orc);
-//entityManager.addEnemy(skelly);
+entityManager.addEnemy(orc);
+entityManager.addEnemy(skelly);
 
 
 
@@ -1114,10 +1114,11 @@ Melee.prototype.swing = function() {
 function onFloor(melee) {
   if (melee.type == "orc_basic") melee.feet = 48;
   if (melee.type == "skeleton_basic") melee.feet = 42;
-  if (melee.tiles.isFloor({x:melee.position.x, y:melee.position.y + melee.feet})) {
+  var frame = {width: melee.width, height: melee.height};
+  if (melee.tiles.isFloor({x:melee.position.x, y:melee.position.y}, frame)) {
     melee.velocity.y = 0;
     melee.floor = (Math.floor((melee.position.y+32)/16) * 16) - 32;
-    melee.position.y = melee.floor + (52-melee.feet);
+    //melee.position.y = melee.floor + (52-melee.feet);
   }
   else {
     melee.floor = CANVAS_HEIGHT - 32;
@@ -1198,7 +1199,7 @@ function Skeleton(startingPosition, tiles) {
   image.src = 'assets/img/Sprite_Sheets/melee/skeleton_dagger_walk.png';
   var image2 = new Image();
   image2.src = 'assets/img/Sprite_Sheets/melee/skeleton_dagger_swing.png';
-  Melee.call(this, startingPosition, 0, 9, image, image2, tiles, 80, 80, {x: 8, y: 22}, "skeleton_basic", 3);
+  Melee.call(this, startingPosition, 0, 9, image, image2, tiles, 75, 75, {x: 8, y: 22}, "skeleton_basic", 3);
 }
 
 
@@ -1374,16 +1375,26 @@ function collisions() {
   this.enemies.forEach(function(enemy, i) {
     var e_array = self.enemies;
     var s_array = self.smokes;
-    if (enemy.hitboxDiff == null) enemy.hitboxDiff = {x:0, y:15};
-    if (enemy.height == null || enemy.width == null) {enemy.height = 64; enemy.width = 32;}
-    if (player.position.x + player.width > enemy.position.x + enemy.hitboxDiff.x &&
+
+    // set hitbox and enemy width/height
+    if (enemy.hitboxDiff == null) enemy.hitboxDiff = {x:0, y:0};
+    if (enemy.height == null || enemy.width == null) {
+      enemy.width = enemy.frame.dest_frame_width;
+      enemy.height = enemy.frame.dest_frame_height;
+    }
+
+    // collision between player and enemy
+    if (player.position.x + 32 > enemy.position.x + enemy.hitboxDiff.x &&
         player.position.y < enemy.position.y + enemy.height &&
         player.position.x < enemy.position.x + enemy.width - enemy.hitboxDiff.x &&
-        player.position.y + player.height > enemy.position.y + enemy.hitboxDiff.y) {
-          if (player.position.y + player.height <= enemy.position.y + enemy.hitboxDiff.y + 10) {
+        player.position.y + 32 > enemy.position.y + enemy.hitboxDiff.y) {
+
+          // player is above enemy
+          if (player.position.y + 32 <= enemy.position.y + enemy.hitboxDiff.y + 10) {
             player.velocity.y = -10; player.state = "jump"; player.time = 0;
             if (enemy.life == null) enemy.life = 1;
             enemy.life--;
+            // enemy has 0 life -- dead
             if (enemy.life == 0) {
               killEnemy.call(self, i, enemy); }
             }
@@ -1392,13 +1403,19 @@ function collisions() {
   })
 }
 
+// kills an enemy and creates a blood splatter
 function killEnemy(index, enemy) {
   var e_array = this.enemies;
   var s_array = this.smokes;
   var player = this.player;
+
+  // position for the blood splatter
   var pos = {x: enemy.position.x + enemy.width/2, y: enemy.position.y + enemy.hitboxDiff.y};
+
+  // create blood splatter
   smoke.call(this, pos, "Red");
-  //smoke.call(this, pos, "OrangeRed");
+
+  //remove enemy
   e_array.splice(index, 1);
 
 }

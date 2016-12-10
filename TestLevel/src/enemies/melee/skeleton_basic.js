@@ -21,7 +21,7 @@ function Skeleton(startingPosition, tiles) {
   image.src = 'assets/img/Sprite_Sheets/melee/skeleton_dagger_walk.png';
   var image2 = new Image();
   image2.src = 'assets/img/Sprite_Sheets/melee/skeleton_dagger_swing.png';
-  Melee.call(this, startingPosition, 0, 9, image, image2, tiles, 80, 80, {x: 8, y: 22}, "skeleton_basic", 3);
+  Melee.call(this, startingPosition, 0, 9, image, image2, tiles, 75, 75, {x: 8, y: 22}, "skeleton_basic", 3);
 }
 
 
