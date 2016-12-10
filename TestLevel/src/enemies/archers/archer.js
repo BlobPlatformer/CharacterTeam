@@ -33,26 +33,32 @@ module.exports = exports = Archer;
  * Base class for enemies which shoot arrows
  * @param {Object} startingPosition, object containing x and y coords
  * @param {Image} image, source spritesheet
+ * @param {Object} frame, object containing display properties including width and height
+ * of the source frame (real size in the sprite sheet) and width and height of destination
+ * frame (how it will be really displayed)
  * @param {Int} walkingRange, distance from which the archer starts moving towards the player
  * @param {Int} walkingSpeed, speed of walking
  * @param {Int} shootingRange, distance from which can archer start shooting
+ * @param {Int} shootingSpeed, speed of shooting
+ * @param {Int} arrowSpeed, speed of an arrow
+ * @param {Int} tiles, checking wheter an archer is standing on the floor
  */
-function Archer(startingPosition, image, walkingRange, walkingSpeed, shootingRange, shootingSpeed, maximumArrows, arrowSpeed, tiles) {
+function Archer(startingPosition, image, frame, walkingRange, walkingSpeed, shootingRange, shootingSpeed, arrowSpeed, tiles) {
   this.position = startingPosition;
   this.state = "idle";
   this.direction = LEFT;
   this.image = image;
-  this.frame = {
+  this.actualFrame = {
     x: 0,
     maxX: IDLE_FRAME_MAX_X,
     y: WALK_LEFT_FRAME_Y // Y frame is the same for WALK and IDLE state
-  }
+  };
+  this.frame = frame;
   this.walkingRange = walkingRange;
   this.walkingSpeed = walkingSpeed;
   this.shootingRange = shootingRange;
   this.shootingSpeed = shootingSpeed;
   this.arrowsGenerated = 0;
-  this.maximumArrows = maximumArrows;
   this.arrowSpeed = arrowSpeed;
   this.time = MS_PER_FRAME;
   // Gravity and other stuff
@@ -71,41 +77,42 @@ Archer.prototype.setFramesAccordingToState = function() {
     case "idle":
     case "falling":
       if(this.direction == LEFT) {
-        this.frame.y = WALK_LEFT_FRAME_Y;
-        this.frame.x = 0;
-        this.frame.maxX = IDLE_FRAME_MAX_X;
+        this.actualFrame.y = WALK_LEFT_FRAME_Y;
+        this.actualFrame.x = 0;
+        this.actualFrame.maxX = IDLE_FRAME_MAX_X;
       } else {
-        this.frame.y = WALK_RIGHT_FRAME_Y;
-        this.frame.x = 0;
-        this.frame.maxX = IDLE_FRAME_MAX_X;
+        this.actualFrame.y = WALK_RIGHT_FRAME_Y;
+        this.actualFrame.x = 0;
+        this.actualFrame.maxX = IDLE_FRAME_MAX_X;
       }
       break;
     case "walking":
       if(this.direction == LEFT) {
-        this.frame.y = WALK_LEFT_FRAME_Y;
-        this.frame.maxX = WALK_LEFT_FRAME_MAX_X;
+        this.actualFrame.y = WALK_LEFT_FRAME_Y;
+        this.actualFrame.maxX = WALK_LEFT_FRAME_MAX_X;
       } else {
-        this.frame.y = WALK_RIGHT_FRAME_Y;
-        this.frame.maxX = WALK_RIGHT_FRAME_MAX_X;
+        this.actualFrame.y = WALK_RIGHT_FRAME_Y;
+        this.actualFrame.maxX = WALK_RIGHT_FRAME_MAX_X;
       }
       break;
     case "shooting":
       if(this.direction == LEFT) {
-        this.frame.y = SHOOT_LEFT_FRAME_Y;
-        this.frame.maxX = SHOOT_LEFT_FRAME_MAX_X;
+        this.actualFrame.y = SHOOT_LEFT_FRAME_Y;
+        this.actualFrame.maxX = SHOOT_LEFT_FRAME_MAX_X;
       } else {
-        this.frame.y = SHOOT_RIGHT_FRAME_Y;
-        this.frame.maxX = SHOOT_RIGHT_FRAME_MAX_X;
+        this.actualFrame.y = SHOOT_RIGHT_FRAME_Y;
+        this.actualFrame.maxX = SHOOT_RIGHT_FRAME_MAX_X;
       }
       break;
   }
 }
 
 function onFloor() {
-  if (this.tiles.isFloor({x:this.position.x, y:this.position.y})) {
+  var frame = {width: this.frame.dest_frame_width, height: this.frame.dest_frame_height};
+
+  if (this.tiles.isFloor(this.position, frame)) {
     this.velocity.y = 0;
-    this.floor = (Math.floor((this.position.y+32)/16) * 16) - 32;
-    this.position.y = this.floor;
+    this.floor = this.tiles.getFloor(this.position, frame);
   }
   else {
     if(this.velocity.y < MAX_Y_VELOCITY) this.velocity.y += this.gravity.y;
@@ -131,7 +138,7 @@ Archer.prototype.update = function(elapsedTime, playerPosition, entityManager) {
   this.position.y += this.velocity.y;
 
   if(this.time > 0) return;
-  this.frame.x = (this.frame.x + 1) % this.frame.maxX;
+  this.actualFrame.x = (this.actualFrame.x + 1) % this.actualFrame.maxX;
 
   if(this.state == "shooting") this.time = this.shootingSpeed;
   else this.time = MS_PER_FRAME;
@@ -161,7 +168,7 @@ Archer.prototype.update = function(elapsedTime, playerPosition, entityManager) {
     this.velocity.x = 0;
     Archer.prototype.setFramesAccordingToState.call(this);
 
-    if(this.frame.x == SHOOTING_FRAME) {
+    if(this.actualFrame.x == SHOOTING_FRAME) {
       var arrowVelocity = {x: (this.direction == LEFT)? -this.arrowSpeed : this.arrowSpeed, y: 0}
       entityManager.addParticle(new Arrow({x: this.position.x, y: this.position.y - 12}, arrowVelocity));
       this.arrowsGenerated = this.arrowsGenerated + 1;
@@ -174,17 +181,17 @@ Archer.prototype.update = function(elapsedTime, playerPosition, entityManager) {
  * @function render
  * Renders the archer enemy in world coordinates
  * @param {DOMHighResTimeStamp} elapsedTime
- * @param {object} frame, sets the source and destionation frame properties
  * @param {CanvasRenderingContext2D} ctx
  */
-Archer.prototype.render = function(elapasedTime, frame ,ctx) {
+Archer.prototype.render = function(elapasedTime, ctx) {
   ctx.drawImage(this.image,
-                this.frame.x * frame.source_frame_width,
-                this.frame.y * frame.source_frame_height,
-                frame.source_frame_width,
-                frame.source_frame_height,
-                this.position.x, this.position.y,
-                frame.dest_frame_width,
-                frame.dest_frame_height
+                this.actualFrame.x * this.frame.source_frame_width,
+                this.actualFrame.y * this.frame.source_frame_height,
+                this.frame.source_frame_width,
+                this.frame.source_frame_height,
+                this.position.x,
+                this.position.y,
+                this.frame.dest_frame_width,
+                this.frame.dest_frame_height
   );
 }

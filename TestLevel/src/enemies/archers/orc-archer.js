@@ -6,7 +6,7 @@ const Archer = require('./archer');
 
 /* Constants */
 const WALKING_RANGE_IN_PX = 800;
-const WALKING_SPEED_IN_PX = 7;
+const WALKING_SPEED_IN_PX = 1.7;
 const SHOOTING_RANGE_IN_PX = 500;
 const SHOOTING_SPEED = 1000/20;
 const ARROW_SPEED_IN_PX = 6.5;
@@ -31,10 +31,10 @@ module.exports = exports = OrcArcher;
  * Class for an orc enemy which shoots arrows
  * @param {Object} startingPosition, object containing x and y coords
  */
-function OrcArcher(startingPosition) {
+function OrcArcher(startingPosition, tiles) {
   var image = new Image();
   image.src = 'assets/img/Sprite_Sheets/archers/orcarcher.png';
-  Archer.call(this, startingPosition, image, WALKING_RANGE_IN_PX, WALKING_SPEED_IN_PX, SHOOTING_RANGE_IN_PX, SHOOTING_SPEED, MAXIMUM_ARROWS_GENERATED, ARROW_SPEED_IN_PX);
+  Archer.call(this, startingPosition, image, FRAME, WALKING_RANGE_IN_PX, WALKING_SPEED_IN_PX, SHOOTING_RANGE_IN_PX, SHOOTING_SPEED, ARROW_SPEED_IN_PX, tiles);
   this.pauseTime = 0;
 }
 
@@ -62,5 +62,5 @@ OrcArcher.prototype.update = function(elapsedTime, playerPosition, entityManager
  * @param {CanvasRenderingContext2D} ctx
  */
 OrcArcher.prototype.render = function(elapsedTime, ctx) {
-  Archer.prototype.render.call(this, elapsedTime, FRAME, ctx);
+  Archer.prototype.render.call(this, elapsedTime, ctx);
 }

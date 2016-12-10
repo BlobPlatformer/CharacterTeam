@@ -32,7 +32,7 @@ module.exports = exports = ElfArcher;
 function ElfArcher(startingPosition, tiles) {
   var image = new Image();
   image.src = 'assets/img/Sprite_Sheets/archers/elfarcher.png';
-  Archer.call(this, startingPosition, image, WALKING_RANGE_IN_PX, WALKING_SPEED_IN_PX, SHOOTING_RANGE_IN_PX, SHOOTING_SPEED, MAXIMUM_ARROWS_GENERATED, ARROW_SPEED_IN_PX, tiles);
+  Archer.call(this, startingPosition, image, FRAME, WALKING_RANGE_IN_PX, WALKING_SPEED_IN_PX, SHOOTING_RANGE_IN_PX, SHOOTING_SPEED, ARROW_SPEED_IN_PX, tiles);
 }
 
 
@@ -54,5 +54,5 @@ ElfArcher.prototype.update = function(elapsedTime, playerPosition, entityManager
  * @param {CanvasRenderingContext2D} ctx
  */
 ElfArcher.prototype.render = function(elapsedTime, ctx) {
-  Archer.prototype.render.call(this, elapsedTime, FRAME, ctx);
+  Archer.prototype.render.call(this, elapsedTime, ctx);
 }
