@@ -19,7 +19,7 @@ module.exports = exports = Orc;
 function Orc(startingPosition, tiles) {
   var image = new Image();
   image.src = 'assets/img/Sprite_Sheets/melee/orc_basic.png';
-  Melee.call(this, startingPosition, 0, 9, image, image, tiles, 80, 80, {x: 10, y: 20}, "orc_basic");
+  Melee.call(this, startingPosition, 0, 9, image, image, tiles, 80, 80, {x: 10, y: 20}, "orc_basic", 1);
 }
 
 

@@ -947,7 +947,7 @@ module.exports = exports = Melee;
  * Base class for an enemy
  * @param {object} startingPosition, object containing x and y coords
  */
-function Melee(startingPosition, frameX, frameY, img, img2, tiles, height, width, hitboxDiff, type) {
+function Melee(startingPosition, frameX, frameY, img, img2, tiles, height, width, hitboxDiff, type, life) {
 
   this.state = WALKING;                                                         // state
   this.position = startingPosition;                                             // position
@@ -968,6 +968,7 @@ function Melee(startingPosition, frameX, frameY, img, img2, tiles, height, width
   if (this.type == "orc_basic") this.walkingSpeed = 2.5;
   if (this.type == "skeleton_basic") this.walkingSpeed = 1.25;
   this.feet;
+  this.life = life;
 
 }
 
@@ -1128,7 +1129,7 @@ module.exports = exports = Orc;
 function Orc(startingPosition, tiles) {
   var image = new Image();
   image.src = 'assets/img/Sprite_Sheets/melee/orc_basic.png';
-  Melee.call(this, startingPosition, 0, 9, image, image, tiles, 80, 80, {x: 10, y: 20}, "orc_basic");
+  Melee.call(this, startingPosition, 0, 9, image, image, tiles, 80, 80, {x: 10, y: 20}, "orc_basic", 1);
 }
 
 
@@ -1180,7 +1181,7 @@ function Skeleton(startingPosition, tiles) {
   image.src = 'assets/img/Sprite_Sheets/melee/skeleton_dagger_walk.png';
   var image2 = new Image();
   image2.src = 'assets/img/Sprite_Sheets/melee/skeleton_dagger_swing.png';
-  Melee.call(this, startingPosition, 0, 9, image, image2, tiles, 80, 80, {x: 8, y: 22}, "skeleton_basic");
+  Melee.call(this, startingPosition, 0, 9, image, image2, tiles, 80, 80, {x: 8, y: 22}, "skeleton_basic", 3);
 }
 
 
@@ -1362,7 +1363,13 @@ function collisions() {
         player.position.y < enemy.position.y + enemy.height &&
         player.position.x < enemy.position.x + enemy.width - enemy.hitboxDiff.x &&
         player.position.y + player.height > enemy.position.y + enemy.hitboxDiff.y) {
-          if (player.position.y + player.height <= enemy.position.y + enemy.hitboxDiff.y + 10) killEnemy.call(self, i, enemy);
+          if (player.position.y + player.height <= enemy.position.y + enemy.hitboxDiff.y + 10) {
+            player.velocity.y = -10; player.state = "jump"; player.time = 0;
+            if (enemy.life == null) enemy.life = 1;
+            enemy.life--;
+            if (enemy.life == 0) {
+              killEnemy.call(self, i, enemy); }
+            }
           else { player.position = {x: 0, y: 200};  }
         }
   })
@@ -1372,7 +1379,6 @@ function killEnemy(index, enemy) {
   var e_array = this.enemies;
   var s_array = this.smokes;
   var player = this.player;
-  player.velocity.y = -10; player.state = "jump"; player.time = 0;
   var pos = {x: enemy.position.x + enemy.width/2, y: enemy.position.y + enemy.hitboxDiff.y};
   smoke.call(this, pos, "Red");
   //smoke.call(this, pos, "OrangeRed");

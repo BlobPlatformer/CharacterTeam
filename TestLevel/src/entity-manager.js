@@ -151,7 +151,13 @@ function collisions() {
         player.position.y < enemy.position.y + enemy.height &&
         player.position.x < enemy.position.x + enemy.width - enemy.hitboxDiff.x &&
         player.position.y + player.height > enemy.position.y + enemy.hitboxDiff.y) {
-          if (player.position.y + player.height <= enemy.position.y + enemy.hitboxDiff.y + 10) killEnemy.call(self, i, enemy);
+          if (player.position.y + player.height <= enemy.position.y + enemy.hitboxDiff.y + 10) {
+            player.velocity.y = -10; player.state = "jump"; player.time = 0;
+            if (enemy.life == null) enemy.life = 1;
+            enemy.life--;
+            if (enemy.life == 0) {
+              killEnemy.call(self, i, enemy); }
+            }
           else { player.position = {x: 0, y: 200};  }
         }
   })
@@ -161,7 +167,6 @@ function killEnemy(index, enemy) {
   var e_array = this.enemies;
   var s_array = this.smokes;
   var player = this.player;
-  player.velocity.y = -10; player.state = "jump"; player.time = 0;
   var pos = {x: enemy.position.x + enemy.width/2, y: enemy.position.y + enemy.hitboxDiff.y};
   smoke.call(this, pos, "Red");
   //smoke.call(this, pos, "OrangeRed");

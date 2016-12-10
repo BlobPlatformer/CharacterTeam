@@ -40,7 +40,7 @@ module.exports = exports = Melee;
  * Base class for an enemy
  * @param {object} startingPosition, object containing x and y coords
  */
-function Melee(startingPosition, frameX, frameY, img, img2, tiles, height, width, hitboxDiff, type) {
+function Melee(startingPosition, frameX, frameY, img, img2, tiles, height, width, hitboxDiff, type, life) {
 
   this.state = WALKING;                                                         // state
   this.position = startingPosition;                                             // position
@@ -61,6 +61,7 @@ function Melee(startingPosition, frameX, frameY, img, img2, tiles, height, width
   if (this.type == "orc_basic") this.walkingSpeed = 2.5;
   if (this.type == "skeleton_basic") this.walkingSpeed = 1.25;
   this.feet;
+  this.life = life;
 
 }
 
