@@ -7,6 +7,7 @@ const STABBING = "stabbing";
 const SWINGING = "swinging";
 
 const Smoke = require('./smoke.js');
+const Vector = require('./vector.js');
 
 /**
  * @module exports the EntityManager class
@@ -94,6 +95,12 @@ EntityManager.prototype.update = function(elapsedTime) {
   meleeInteractions(this, this.player);
   collisions.call(this);
 
+  // Particles vs. Player collision detection
+  this.particles.sort(function(a,b) {
+    return a.x - b.x;
+  });
+  detectPlayerParticleCollisions.call(this);
+
   // TODO update collectables
 }
 
@@ -120,6 +127,11 @@ EntityManager.prototype.render = function(elapsedTime, ctx) {
   });
 
   // TODO render collectables
+}
+
+function resetPlayer() {
+  this.player.position = {x: 0, y: 200};
+  this.particles = [];
 }
 
 function meleeInteractions(me, player) {
@@ -168,7 +180,7 @@ function collisions() {
             if (enemy.life == 0) {
               killEnemy.call(self, i, enemy); }
             }
-          else { player.position = {x: 0, y: 200};  }
+          else { resetPlayer.call(self); }
         }
   })
 }
@@ -216,4 +228,24 @@ function smoke(position, color)
     s_array.push(smoke);
 
   }
+}
+
+function detectPlayerParticleCollisions() {
+  var self = this;
+  this.particles.forEach(function(particle){
+    // If the distance between player and particle is greater than player width
+    // we can be sure that there is no collision
+    // else we may have a rectangular collision
+    if(Vector.magnitude(Vector.subtract(self.player.position, particle.position)) > self.player.frame.dest_frame_width) return;
+    //console.log("potential collision");
+    if(!(
+      self.player.position.x > particle.position.x + particle.frame.dest_frame_width ||
+      self.player.position.x + self.player.frame.dest_frame_width < particle.position.x ||
+      self.player.position.y > particle.position.y + particle.frame.dest_frame_height ||
+      self.player.position.y + self.player.frame.dest_frame_height < particle.position.y
+    )) {
+      resetPlayer.call(self);
+    }
+
+  });
 }
