@@ -51,7 +51,7 @@ OrcArcher.prototype.update = function(elapsedTime, playerPosition, entityManager
   Archer.prototype.update.call(this, elapsedTime, playerPosition, entityManager);
 
   if(this.arrowsGenerated == MAXIMUM_ARROWS_GENERATED) {
-    this.frame.x = (this.frame.x + 1) % this.frame.maxX;
+    this.actualFrame.x = (this.actualFrame.x + 1) % this.actualFrame.maxX;    
     this.time = PAUSE;
     this.arrowsGenerated = 0;
   }
