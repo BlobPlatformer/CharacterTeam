@@ -22,16 +22,13 @@ module.exports = exports = Particle;
  * @param {int} frameHeight, y-position of the frame in the source image
  * @param {int} frameSize, size (width & height) of the destionation frame
  */
-function Particle(startingPosition, velocity, image, imageSize, frame, frameHeight, frameSize) {
+function Particle(startingPosition, velocity, image, actualFrame, frame) {
   this.position = startingPosition;
   this.velocity = velocity;
   // TODO
   this.image = image;
-  this.imageSize = imageSize;
-  this.frame = frame; //Frame on X-axis
-  this.frameHeight = frameHeight; //Frame on Y-axis
-  this.frameSize = frameSize;
-  //this.time = MS_PER_FRAME;
+  this.frame = frame;
+  this.actualFrame = actualFrame;
 }
 
 /**
@@ -57,7 +54,14 @@ Particle.prototype.update = function(elapsedTime) {
  * @param {CanvasRenderingContext2D} ctx
  */
 Particle.prototype.render = function(elapasedTime, ctx) {
-  // TODO
-  ctx.drawImage(this.image, this.frame * this.frameSize, this.frameHeight * this.frameSize,
-    this.imageSize, this.imageSize, this.position.x, this.position.y, this.frameSize, this.frameSize);
+  ctx.drawImage(this.image,
+                this.actualFrame.x * this.frame.source_frame_width,
+                this.actualFrame.y * this.frame.source_frame_height,
+                this.frame.source_frame_width,
+                this.frame.source_frame_height,
+                this.position.x,
+                this.position.y,
+                this.frame.dest_frame_width,
+                this.frame.dest_frame_height
+  );
 }

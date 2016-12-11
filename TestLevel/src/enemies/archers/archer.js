@@ -43,7 +43,7 @@ module.exports = exports = Archer;
  * @param {Int} arrowSpeed, speed of an arrow
  * @param {Int} tiles, checking wheter an archer is standing on the floor
  */
-function Archer(startingPosition, image, frame, walkingRange, walkingSpeed, shootingRange, shootingSpeed, arrowSpeed, tiles) {
+function Archer(startingPosition, image, frame, walkingRange, walkingSpeed, shootingRange, shootingSpeed, arrow, tiles) {
   this.position = startingPosition;
   this.state = "idle";
   this.direction = LEFT;
@@ -59,7 +59,7 @@ function Archer(startingPosition, image, frame, walkingRange, walkingSpeed, shoo
   this.shootingRange = shootingRange;
   this.shootingSpeed = shootingSpeed;
   this.arrowsGenerated = 0;
-  this.arrowSpeed = arrowSpeed;
+  this.arrow = arrow;
   this.time = MS_PER_FRAME;
   // Gravity and other stuff
   this.floor = 16*35; // May be parametrized
@@ -169,8 +169,8 @@ Archer.prototype.update = function(elapsedTime, playerPosition, entityManager) {
     Archer.prototype.setFramesAccordingToState.call(this);
 
     if(this.actualFrame.x == SHOOTING_FRAME) {
-      var arrowVelocity = {x: (this.direction == LEFT)? -this.arrowSpeed : this.arrowSpeed, y: 0}
-      entityManager.addParticle(new Arrow({x: this.position.x, y: this.position.y - 12}, arrowVelocity));
+      var arrowVelocity = {x: (this.direction == LEFT)? -this.arrow.speed : this.arrow.speed, y: 0}
+      entityManager.addParticle(new Arrow({x: this.position.x, y: this.position.y + this.arrow.shift}, arrowVelocity));
       this.arrowsGenerated = this.arrowsGenerated + 1;
     }
   }
