@@ -1,11 +1,13 @@
 "use strict";
 
 /* Constants */
-const ORIG_FRAME_SIZE = 64;
-const DEST_FRAME_SIZE = 54;
 const ARROW_LEFT = 0; // Frame position
 const ARROW_RIGHT = 1; // Frame position
-
+const FRAME = {source_frame_width: 33,
+               source_frame_height: 6,
+               dest_frame_width: 33,
+               dest_frame_height: 6
+};
 /* Classes and Libraries */
 const Particle = require('../../particle');
 
@@ -24,9 +26,9 @@ function Arrow(position, velocity) {
   var image =  new Image();
   image.src = 'assets/img/Sprite_Sheets/archers/arrow.png';
 
-  var frame = (velocity.x < 0)? ARROW_LEFT : ARROW_RIGHT;
+  var actualFrame = {x: (velocity.x < 0)? ARROW_LEFT : ARROW_RIGHT, y: 0};
 
-  Particle.call(this, position, velocity, image, ORIG_FRAME_SIZE, frame, 0, DEST_FRAME_SIZE);
+  Particle.call(this, position, velocity, image, actualFrame, FRAME);
 }
 
 /**

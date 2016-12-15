@@ -4,6 +4,10 @@ const LEFT = "left";
 const RIGHT = "right";
 const WALKING = "walking";
 const STABBING = "stabbing";
+const SWINGING = "swinging";
+
+const Smoke = require('./smoke.js');
+const Vector = require('./vector.js');
 
 /**
  * @module exports the EntityManager class
@@ -20,6 +24,7 @@ function EntityManager(player) {
   this.enemies = [];
   this.particles = [];
   this.collectables = [];
+  this.smokes = [];
 }
 
 /**
@@ -51,6 +56,11 @@ EntityManager.prototype.addCollectable = function(collectable) {
   this.collectables.push(collectable);
 }
 
+// Add a smoke particle to the entityManager
+EntityManager.prototype.addSmoke = function(smoke) {
+  this.smokes.push(smoke);
+}
+
 /**
  * @function update
  * Updates all entities, removes invalid particles (TODO)
@@ -70,8 +80,26 @@ EntityManager.prototype.update = function(elapsedTime) {
     particle.update(elapsedTime);
   });
 
+  var removePart = [];
+  var array = this.smokes;
+  // Update smoke particles
+  this.smokes.forEach(function(smoke, i) {
+    smoke.update(elapsedTime);
+    if (smoke.scale == 0) { removePart.unshift(i); }
+  });
+  var s = this.smokes;
+  removePart.forEach(function(i) {
+    s.splice(i, 1);
+  })
+
   meleeInteractions(this, this.player);
-  collisions(this, this.player);
+  collisions.call(this);
+
+  // Particles vs. Player collision detection
+  this.particles.sort(function(a,b) {
+    return a.x - b.x;
+  });
+  detectPlayerParticleCollisions.call(this);
 
   // TODO update collectables
 }
@@ -85,6 +113,7 @@ EntityManager.prototype.update = function(elapsedTime) {
  * @param {CanvasRenderingContext2D} ctx the context to render to
  */
 EntityManager.prototype.render = function(elapsedTime, ctx) {
+
   this.enemies.forEach(function(enemy) {
     enemy.render(elapsedTime, ctx);
   });
@@ -93,33 +122,130 @@ EntityManager.prototype.render = function(elapsedTime, ctx) {
     particle.render(elapsedTime, ctx);
   });
 
+  this.smokes.forEach(function(smoke) {
+    smoke.render(elapsedTime, ctx);
+  });
+
   // TODO render collectables
+}
+
+function resetPlayer() {
+  this.player.position = {x: 0, y: 200};
+  this.particles = [];
 }
 
 function meleeInteractions(me, player) {
   me.enemies.forEach(function(enemy) {
     if (enemy.state != "idle" && enemy.position.y + 80 > player.position.y && enemy.position.y < player.position.y + 35) {
       if (enemy.direction == LEFT && enemy.position.x < player.position.x + 40
-          && enemy.position.x > player.position.x && enemy.state != STABBING) {
-            enemy.stab();
+          && enemy.position.x > player.position.x && enemy.state != STABBING && enemy.state != SWINGING) {
+            if (enemy.type == "orc_basic") enemy.stab();
+            if (enemy.type == "skeleton_basic") enemy.swing();
           }
       if (enemy.direction == RIGHT && enemy.position.x + 80 > player.position.x
-          && enemy.position.x < player.position.x && enemy.state != STABBING) {
-            enemy.stab();
+          && enemy.position.x < player.position.x && enemy.state != STABBING && enemy.state != SWINGING) {
+            if (enemy.type == "orc_basic") enemy.stab();
+            if (enemy.type == "skeleton_basic") enemy.swing();
           }
     }
   });
 }
 
-function collisions(me, player) {
-  me.enemies.forEach(function(enemy, i) {
-    if (player.position.x + 32 > enemy.position.x + 5 &&
-        player.position.y < enemy.position.y + 80 &&
-        player.position.x < enemy.position.x + 75 &&
-        player.position.y + 32 > enemy.position.y + 20) {
-          if (player.position.y + 32 <= enemy.position.y + 25) me.enemies.splice(i, 1);
-          else { me.player.state = "DEAD"; me.player.velocity = {x: 0, y: 0};
-                 me.player.gravity = {x: 0, y: 0}; me.player.position = {x: -100, y: 100}; }
+function collisions() {
+  var self = this;
+  var player = this.player;
+  this.enemies.forEach(function(enemy, i) {
+    var e_array = self.enemies;
+    var s_array = self.smokes;
+
+    // set hitbox and enemy width/height
+    if (enemy.hitboxDiff == null) enemy.hitboxDiff = {x:0, y:0};
+    if (enemy.height == null || enemy.width == null) {
+      enemy.width = enemy.frame.dest_frame_width;
+      enemy.height = enemy.frame.dest_frame_height;
+    }
+
+    // collision between player and enemy
+    if (player.position.x + 32 > enemy.position.x + enemy.hitboxDiff.x &&
+        player.position.y < enemy.position.y + enemy.height &&
+        player.position.x < enemy.position.x + enemy.width - enemy.hitboxDiff.x &&
+        player.position.y + 32 > enemy.position.y + enemy.hitboxDiff.y) {
+
+          // player is above enemy
+          if (player.position.y + 32 <= enemy.position.y + enemy.hitboxDiff.y + 10) {
+            player.velocity.y = -10; player.state = "jump"; player.time = 0;
+            if (enemy.life == null) enemy.life = 1;
+            enemy.life--;
+            // enemy has 0 life -- dead
+            if (enemy.life == 0) {
+              killEnemy.call(self, i, enemy); }
+            }
+          else { resetPlayer.call(self); }
         }
   })
+}
+
+// kills an enemy and creates a blood splatter
+function killEnemy(index, enemy) {
+  var e_array = this.enemies;
+  var s_array = this.smokes;
+  var player = this.player;
+
+  // position for the blood splatter
+  var pos = {x: enemy.position.x + enemy.width/2, y: enemy.position.y + enemy.hitboxDiff.y};
+
+  // create blood splatter
+  smoke.call(this, pos, "Red");
+
+  //remove enemy
+  e_array.splice(index, 1);
+
+}
+
+// creates an explosion at a given position with a given color
+// still referencing http://www.gameplaypassion.com/blog/explosion-effect-html5-canvas/ heavily
+function smoke(position, color)
+{
+  var s_array = this.smokes;
+  var minSize = 5;
+  var maxSize = 20;
+  var count = 12;
+  var minSpeed = 60;
+  var maxSpeed = 200;
+  var minScaleSpeed = 1;
+  var maxScaleSpeed = 4;
+  var radius;
+  var position = position;
+
+  for (var angle = 0; angle < 360; angle+=Math.round(360/count))
+  {
+    radius = minSize + Math.random()*(maxSize-minSize);
+    var smoke = new Smoke(position, radius, color);
+    smoke.scaleSpeed = minScaleSpeed + Math.random()*(maxScaleSpeed-minScaleSpeed);
+    var speed = minSpeed + Math.random()*(maxSpeed-minSpeed);
+    smoke.velocityX = speed * Math.cos(angle * Math.PI / 180);
+    smoke.velocityY = speed * Math.sin(angle * Math.PI / 180);
+    s_array.push(smoke);
+
+  }
+}
+
+function detectPlayerParticleCollisions() {
+  var self = this;
+  this.particles.forEach(function(particle){
+    // If the distance between player and particle is greater than player width
+    // we can be sure that there is no collision
+    // else we may have a rectangular collision
+    if(Vector.magnitude(Vector.subtract(self.player.position, particle.position)) > self.player.frame.dest_frame_width) return;
+    //console.log("potential collision");
+    if(!(
+      self.player.position.x > particle.position.x + particle.frame.dest_frame_width ||
+      self.player.position.x + self.player.frame.dest_frame_width < particle.position.x ||
+      self.player.position.y > particle.position.y + particle.frame.dest_frame_height ||
+      self.player.position.y + self.player.frame.dest_frame_height < particle.position.y
+    )) {
+      resetPlayer.call(self);
+    }
+
+  });
 }

@@ -5,8 +5,12 @@
 /* Constants */
 const CANVAS_WIDTH = 1120;
 const CANVAS_HEIGHT = 800;
-const IMAGE_SIZE = 64;
 const MS_PER_FRAME = 1000/8;
+const FRAME = {source_frame_width: 64,
+               source_frame_height: 64,
+               dest_frame_width: 32,
+               dest_frame_height: 32
+};
 
 /**
  * @module Player
@@ -19,19 +23,21 @@ module.exports = exports = Player;
  * Creates a player
  * @param {BulletPool} bullets the bullet pool
  */
-function Player(x,y) {
+function Player(position, tiles) {
   this.state = "idle";
-  this.position = {x: x, y: y};
+  this.position = position;
   this.velocity = {x: 0, y: 0};
   this.gravity = {x: 0, y: 1};
   this.floor = 16*35;
   // TODO
   this.img = new Image()
   this.img.src = 'assets/img/Sprite_Sheets/animations.png';
-  this.frame = 1;
-  this.frameHeight = 0;
+  this.actualFrame = {x: 1, y: 0}; // Position of an inner frame in sprite sheet`
+  this.frame = FRAME; // Frame properties, width, height of source and destination
   this.direction = "right";
   this.time = MS_PER_FRAME;
+
+  this.tiles = tiles;
 
   // testing something
   this.storedFH = 0;
@@ -48,40 +54,44 @@ function Player(x,y) {
  * boolean properties: up, left, right, down
  */
 Player.prototype.update = function(elapsedTime, input) {
+
+  // Check if player is standing on the floor
+  onFloor.call(this);
+
   switch (this.state) {
     case "idle":
       this.time += elapsedTime;
       // landing
       if (this.previousState == "falling") {
         if (this.time <= MS_PER_FRAME) {
-          this.frameHeight = 3;
-          this.frame = 3;
+          this.actualFrame.y = 3;
+          this.actualFrame.x = 3;
         }
         else if (this.time <= 2*MS_PER_FRAME) {
-          this.frameHeight = 3;
-          this.frame = 2;
+          this.actualFrame.y = 3;
+          this.actualFrame.x = 2;
         }
         else if (this.time <= 3*MS_PER_FRAME) {
-          this.frameHeight = 3;
-          this.frame = 1;
+          this.actualFrame.y = 3;
+          this.actualFrame.x = 1;
         }
         else if (this.time <= 4*MS_PER_FRAME) {
-          this.frameHeight = 3;
-          this.frame = 0;
+          this.actualFrame.y = 3;
+          this.actualFrame.x = 0;
         }
         else {
-          this.frameHeight = this.storedFH;
-          this.frame = this.storedF;
+          this.actualFrame.y = this.storedFH;
+          this.actualFrame.x = this.storedF;
         }
       }
       else if (this.previousState == "moving") {
         if (this.time <= MS_PER_FRAME) {
-          this.frameHeight = this.storedF+1; //bit of a hack here, i can explain in class
-          this.frame = 0;
+          this.actualFrame.y = this.storedF+1; //bit of a hack here, i can explain in class
+          this.actualFrame.x = 0;
         }
         else {
-          this.frameHeight = this.storedFH;
-          this.frame = this.storedF;
+          this.actualFrame.y = this.storedFH;
+          this.actualFrame.x = this.storedF;
         }
       }
 
@@ -90,15 +100,15 @@ Player.prototype.update = function(elapsedTime, input) {
       //this.velocity.x = 0;
       if(input.left) {
         this.direction = "left";
-        this.frameHeight = 1;
-        this.frame = 0;
+        this.actualFrame.y = 1;
+        this.actualFrame.x = 0;
         this.time = 0;
         this.state = "moving";
       }
       else if(input.right) {
         this.direction = "right";
-        this.frameHeight = 2;
-        this.frame = 0;
+        this.actualFrame.y = 2;
+        this.actualFrame.x = 0;
         this.time = 0;
         this.state = "moving";
       }
@@ -111,20 +121,20 @@ Player.prototype.update = function(elapsedTime, input) {
       //this.velocity.x = 0;
       this.time += elapsedTime;
       if(input.left) {
-        this.frameHeight = 1;
+        this.actualFrame.y = 1;
         if(this.velocity.x > -6) {
           this.velocity.x -= .5;
         }
-        if (this.time >= MS_PER_FRAME && this.time <= 2*MS_PER_FRAME) { this.frame = 0;}
-        if (this.time >= 2*MS_PER_FRAME) { this.frame = 1; }
+        if (this.time >= MS_PER_FRAME && this.time <= 2*MS_PER_FRAME) { this.actualFrame.x = 0;}
+        if (this.time >= 2*MS_PER_FRAME) { this.actualFrame.x = 1; }
       }
       else if(input.right) {
-        this.frameHeight = 2;
+        this.actualFrame.y = 2;
         if(this.velocity.x < 6) {
           this.velocity.x += .5;
         }
-        if (this.time >= MS_PER_FRAME && this.time <= 2*MS_PER_FRAME) { this.frame = 0;}
-        if (this.time >= 2*MS_PER_FRAME) { this.frame = 1; }
+        if (this.time >= MS_PER_FRAME && this.time <= 2*MS_PER_FRAME) { this.actualFrame.x = 0;}
+        if (this.time >= 2*MS_PER_FRAME) { this.actualFrame.x = 1; }
       }
       else {
         this.time = 0;
@@ -162,29 +172,29 @@ Player.prototype.update = function(elapsedTime, input) {
     case "jump":
       this.time += elapsedTime;
       if (this.time <= MS_PER_FRAME) {
-        this.frameHeight = 3;
-        this.frame = 0;
+        this.actualFrame.y = 3;
+        this.actualFrame.x = 0;
       }
       else if (this.time <= 2*MS_PER_FRAME) {
-        this.frameHeight = 3;
-        this.frame = 1;
+        this.actualFrame.y = 3;
+        this.actualFrame.x = 1;
       }
       else if (this.time <= 3*MS_PER_FRAME) {
-        this.frameHeight = 3;
-        this.frame = 2;
+        this.actualFrame.y = 3;
+        this.actualFrame.x = 2;
       }
       else if (this.time <= 4*MS_PER_FRAME) {
-        this.frameHeight = 3;
-        this.frame = 3;
+        this.actualFrame.y = 3;
+        this.actualFrame.x = 3;
       }
       else {
-        this.frameHeight = 3;
-        this.frame = 4;
+        this.actualFrame.y = 3;
+        this.actualFrame.x = 4;
       }
 
       if (this.velocity.y > 0) {
-        this.frameHeight = 3;
-        this.frame = 4;
+        this.actualFrame.y = 3;
+        this.actualFrame.x = 4;
         this.state = "falling";
       }
       else if(input.left) {
@@ -207,7 +217,7 @@ Player.prototype.update = function(elapsedTime, input) {
   // move the player
   this.position.x += this.velocity.x;
   this.position.y += this.velocity.y;
-  if(this.velocity.y < 14)
+  if(this.velocity.y < 10)
   {
     this.velocity.x += this.gravity.x;
     this.velocity.y += this.gravity.y;
@@ -226,7 +236,16 @@ Player.prototype.update = function(elapsedTime, input) {
  * @param {CanvasRenderingContext2D} ctx
  */
 Player.prototype.render = function(elapasedTime, ctx) {
-  ctx.drawImage(this.img, IMAGE_SIZE*this.frame, IMAGE_SIZE*this.frameHeight, IMAGE_SIZE, IMAGE_SIZE, this.position.x, this.position.y, 32, 32);
+  ctx.drawImage(this.img,
+                this.actualFrame.x * this.frame.source_frame_width,
+                this.actualFrame.y * this.frame.source_frame_height,
+                this.frame.source_frame_width,
+                this.frame.source_frame_height,
+                this.position.x,
+                this.position.y,
+                this.frame.dest_frame_width,
+                this.frame.dest_frame_height
+  );
 }
 
 Player.prototype.jump = function() {
@@ -234,5 +253,21 @@ Player.prototype.jump = function() {
     this.time = 0;
     this.state = "jump";
     this.velocity.y = -13;
+  }
+}
+
+function onFloor() {
+  if(this.velocity.y >= 0) {
+    // Set the sizes of the frame which is truly displayed
+    var frame = {width: this.frame.dest_frame_width, height: this.frame.dest_frame_height};
+
+    if(this.tiles.isFloor(this.position, frame)) {
+      //this.velocity = {x:0,y:0};
+      this.velocity.y = 0;
+      this.floor = this.tiles.getFloor(this.position, frame);
+    }
+    else {
+      this.floor = CANVAS_HEIGHT - this.frame.dest_frame_height;
+    }
   }
 }

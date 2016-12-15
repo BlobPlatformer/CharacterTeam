@@ -6,10 +6,11 @@ const Archer = require('./archer');
 
 /* Constants */
 const WALKING_RANGE_IN_PX = 600;
-const WALKING_SPEED_IN_PX = 5;
+const WALKING_SPEED_IN_PX = 1;
 const SHOOTING_RANGE_IN_PX = 350;
 const SHOOTING_SPEED = 1000/13;
 const ARROW_SPEED_IN_PX = 5;
+const ARROW_SHIFT_IN_PX = 24; //Num of pixel to shift the arrow down
 const MAXIMUM_ARROWS_GENERATED = 1;
 const FRAME = {source_frame_width: 64,
                source_frame_height: 64,
@@ -29,10 +30,11 @@ module.exports = exports = ElfArcher;
  * Class for an elf enemy which shoots arrows
  * @param {Object} startingPosition, object containing x and y coords
  */
-function ElfArcher(startingPosition) {
+function ElfArcher(startingPosition, tiles) {
   var image = new Image();
   image.src = 'assets/img/Sprite_Sheets/archers/elfarcher.png';
-  Archer.call(this, startingPosition, image, WALKING_RANGE_IN_PX, WALKING_SPEED_IN_PX, SHOOTING_RANGE_IN_PX, SHOOTING_SPEED, MAXIMUM_ARROWS_GENERATED, ARROW_SPEED_IN_PX);
+  var arrow = {speed: ARROW_SPEED_IN_PX, shift: ARROW_SHIFT_IN_PX};
+  Archer.call(this, startingPosition, image, FRAME, WALKING_RANGE_IN_PX, WALKING_SPEED_IN_PX, SHOOTING_RANGE_IN_PX, SHOOTING_SPEED, arrow, tiles);
 }
 
 
@@ -54,5 +56,5 @@ ElfArcher.prototype.update = function(elapsedTime, playerPosition, entityManager
  * @param {CanvasRenderingContext2D} ctx
  */
 ElfArcher.prototype.render = function(elapsedTime, ctx) {
-  Archer.prototype.render.call(this, elapsedTime, FRAME, ctx);
+  Archer.prototype.render.call(this, elapsedTime, ctx);
 }

@@ -1,4 +1,4 @@
-
+const TILE_SIZE = 16;
 
 
 module.exports = exports = Tiles;
@@ -26,9 +26,9 @@ Tiles.prototype.getWidth = function(){
 	return this.width;
 }
 
-Tiles.prototype.isFloor = function(position){
-	var y = Math.floor((position.y+32)/16);
-	var x = Math.floor((position.x+32)/16);
+Tiles.prototype.isFloor = function(position, frame){
+	var y = Math.floor((position.y+frame.height)/TILE_SIZE);
+	var x = Math.floor((position.x+frame.width)/TILE_SIZE);
 	var xL = Math.floor(x);
 	//var xC = Math.floor(x-1);
 	var xR = Math.floor(x-2);
@@ -51,4 +51,9 @@ Tiles.prototype.isFloor = function(position){
 	else {
 		return false
 	}
+}
+
+// Returns the y position of the floor
+Tiles.prototype.getFloor = function(position, frame) {
+  return (Math.floor((position.y+frame.height)/TILE_SIZE) * TILE_SIZE) - frame.height;
 }
