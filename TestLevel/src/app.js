@@ -49,6 +49,7 @@ entityManager.addEnemy(orcarcher);
 entityManager.addEnemy(bird);
 entityManager.addEnemy(orc);
 entityManager.addEnemy(skelly);
+entityManager.addEnemy(diver);
 
 
 

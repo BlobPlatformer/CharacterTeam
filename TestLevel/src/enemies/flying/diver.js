@@ -37,6 +37,8 @@ function Diver(startingPosition, startendposition) {
   this.playerDivePosition;
   this.diving = false;
   this.going_up = false;
+  this.width = 40;
+  this.height = 32;
 }
 
 /**

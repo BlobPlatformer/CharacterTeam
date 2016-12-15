@@ -26,7 +26,6 @@ function EntityManager(player) {
   this.collectables = [];
   this.smokes = [];
 }
-
 /**
  * @function addEnemy
  * Adds an enemy, all enemies has to implement update and render method
