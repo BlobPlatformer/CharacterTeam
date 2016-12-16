@@ -11,6 +11,7 @@ const Diver = require('./enemies/flying/diver');
 const OrcArcher = require('./enemies/archers/orc-archer');
 const Orc = require('./enemies/melee/orc_basic.js');
 const Skeleton = require('./enemies/melee/skeleton_basic.js');
+const Boss = require('./enemies/boss/boss');
 
 
 
@@ -31,7 +32,9 @@ var bird = new EnemyBird({x:1, y: 100}, {start:0 , end:canvas.width });
 var diver = new Diver({x:1, y: 100}, {start:0 , end:canvas.width });
 var orc = new Orc({x: 600, y: 200}, tiles);
 var skelly = new Skeleton({x: 800, y: 200}, tiles);
+var boss = new Boss({x: 950, y: 200}, tiles);
 var entityManager = new EntityManager(player);
+
 
 var input = {
   up: false,
@@ -50,6 +53,7 @@ entityManager.addBird(bird);
 entityManager.addEnemy(orc);
 entityManager.addEnemy(skelly);
 entityManager.addEnemy(diver);
+entityManager.addEnemy(boss);
 
 /**
  * @function onkeydown
