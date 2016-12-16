@@ -6,7 +6,7 @@
 const MS_PER_FRAME = 1000/8;
 const IMAGE_WIDTH = 927;
 const IMAGE_HEIGHT = 633;
-const ABSOLUTE_VELOCITY = 5;
+const ABSOLUTE_VELOCITY = 3;
 
 /**
  * @module Enemy
@@ -57,7 +57,6 @@ Diver.prototype.update = function(elapsedTime, playerPosition) {
     this.getDivingVelocity();
   }
   var self = this;
-  console.log(this.state);
   switch(this.state){
     case "right":
       this.frameHeight = 0;
@@ -98,7 +97,6 @@ Diver.prototype.update = function(elapsedTime, playerPosition) {
         this.frame ++;
         this.time = 0;
       }
-      console.log(this.position,playerPosition);
       if(this.position.y >= playerPosition.y){
         this.velocity.x = 0;
         this.velocity.y = ABSOLUTE_VELOCITY;
@@ -108,7 +106,6 @@ Diver.prototype.update = function(elapsedTime, playerPosition) {
       if(this.going_up) this.position.y -= this.velocity.y;
       else this.position.y += this.velocity.y;
       if(this.frame >= 8) this.frame = 0;
-      console.log(this.position,playerPosition);
       if(this.position.y <= this.flyingHeight){
         this.velocity.x = ABSOLUTE_VELOCITY;
         this.velocity.y = 0;

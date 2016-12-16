@@ -46,13 +46,10 @@ var elfarcher = new ElfArcher({x: 780, y: 100}, tiles);
 var orcarcher = new OrcArcher({x: 520, y: 100}, tiles);
 entityManager.addEnemy(elfarcher);
 entityManager.addEnemy(orcarcher);
-entityManager.addEnemy(bird);
+entityManager.addBird(bird);
 entityManager.addEnemy(orc);
 entityManager.addEnemy(skelly);
 entityManager.addEnemy(diver);
-
-
-
 
 /**
  * @function onkeydown

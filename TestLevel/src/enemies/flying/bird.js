@@ -65,7 +65,6 @@ Bird.prototype.update = function(elapsedTime) {
       if(this.position.x >= this.end){
         this.direction = "left";
         this.frame = 0;
-        //console.log("goes left", this.position);
       }
       else{
         this.position.x += this.velocity;
@@ -82,7 +81,6 @@ Bird.prototype.update = function(elapsedTime) {
       if(this.position.x <= this.start){
         this.direction = "right";
         this.frame = 0;
-        //console.log("goes right", this.position);
       }
       else{
         this.position.x -= this.velocity;

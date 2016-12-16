@@ -22,6 +22,7 @@ module.exports = exports = EntityManager;
 function EntityManager(player) {
   this.player = player;
   this.enemies = [];
+  this.birds = [];
   this.particles = [];
   this.collectables = [];
   this.smokes = [];
@@ -35,6 +36,10 @@ function EntityManager(player) {
  */
 EntityManager.prototype.addEnemy = function(enemy) {
   this.enemies.push(enemy);
+}
+
+EntityManager.prototype.addBird = function(bird) {
+  this.birds.push(bird);
 }
 
 /**
@@ -74,6 +79,10 @@ EntityManager.prototype.update = function(elapsedTime) {
     enemy.update(elapsedTime, self.player.position, self);
   });
 
+  this.birds.forEach(function(bird) {
+    bird.update(elapsedTime);
+  });
+
   // Update particles
   this.particles.forEach(function(particle) {
     particle.update(elapsedTime);
@@ -93,6 +102,7 @@ EntityManager.prototype.update = function(elapsedTime) {
 
   meleeInteractions(this, this.player);
   collisions.call(this);
+  poopCollisions(this, this.player);
 
   // Particles vs. Player collision detection
   this.particles.sort(function(a,b) {
@@ -115,6 +125,9 @@ EntityManager.prototype.render = function(elapsedTime, ctx) {
 
   this.enemies.forEach(function(enemy) {
     enemy.render(elapsedTime, ctx);
+  });
+  this.birds.forEach(function(bird) {
+    bird.render(elapsedTime, ctx);
   });
 
   this.particles.forEach(function(particle) {
@@ -148,6 +161,21 @@ function meleeInteractions(me, player) {
           }
     }
   });
+}
+
+function poopCollisions(me, player){
+  me.birds.forEach(function(bird){
+    var pool = bird.bulletpool;
+    for(var i = 0; i < pool.end; i ++){
+      if (player.position.x + 32 > pool.pool[4*i] &&
+          player.position.y < pool.pool[i*4+1] + pool.bulletRadius &&
+          player.position.x < pool.pool[4*i] + pool.bulletRadius &&
+          player.position.y + 32 > pool.pool[i*4+1]){
+            resetPlayer.call(me);
+            break;
+          }
+    }
+  })
 }
 
 function collisions() {
